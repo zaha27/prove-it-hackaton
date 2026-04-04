@@ -203,7 +203,6 @@ def main() -> None:
         "mae": mae,
         "r2": r2,
         "best_iteration": int(getattr(model, "best_iteration", -1)),
-        "best_score": float(getattr(model, "best_score", np.nan)),
     }
     Path(args.metrics_json).write_text(json.dumps(metrics, indent=2), encoding="utf-8")
 

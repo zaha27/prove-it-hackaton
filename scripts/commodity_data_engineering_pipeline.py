@@ -98,8 +98,17 @@ def _normalize_source(df: pd.DataFrame, prefix: str, value_cols: Optional[List[s
     if value_cols is None:
         value_cols = [c for c in df.columns if c != "date"]
     if entity_col and entity_col in df.columns and value_cols:
-        melted = df[["date", entity_col] + value_cols].melt(id_vars=["date", entity_col], value_vars=value_cols, var_name="metric", value_name="value")
-        melted["feature"] = prefix + "_" + melted[entity_col].astype(str).map(_safe_slug) + "_" + melted["metric"].map(_safe_slug)
+        id_cols = ["date", entity_col]
+        melt_frame = df[id_cols + value_cols]
+        melted = melt_frame.melt(
+            id_vars=id_cols,
+            value_vars=value_cols,
+            var_name="metric",
+            value_name="value",
+        )
+        entity_part = melted[entity_col].astype(str).map(_safe_slug)
+        metric_part = melted["metric"].map(_safe_slug)
+        melted["feature"] = prefix + "_" + entity_part + "_" + metric_part
         wide = melted.pivot_table(index="date", columns="feature", values="value", aggfunc="last").reset_index()
         wide.columns.name = None
         return wide
@@ -173,7 +182,9 @@ def _monthly_to_daily(df: pd.DataFrame, daily_index: pd.DatetimeIndex, source_pr
         return pd.DataFrame(index=daily_index)
     base = df.set_index("date").sort_index().reindex(daily_index, method="ffill")
     source_dates = pd.DatetimeIndex(df["date"].sort_values().unique())
-    pos = np.searchsorted(source_dates.values.astype("datetime64[ns]"), daily_index.values.astype("datetime64[ns]"), side="right") - 1
+    source_values = source_dates.values.astype("datetime64[ns]")
+    daily_values = daily_index.values.astype("datetime64[ns]")
+    pos = np.searchsorted(source_values, daily_values, side="right") - 1
     last_update = pd.Series(pd.NaT, index=daily_index, dtype="datetime64[ns]")
     valid = pos >= 0
     if valid.any():
