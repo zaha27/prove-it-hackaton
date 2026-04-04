@@ -119,7 +119,7 @@ def _load_source(cfg: SourceConfig, start: pd.Timestamp, end: pd.Timestamp, enti
     elif cfg.api_url:
         try:
             df = _fetch_json_scaffold(cfg)
-        except Exception:
+        except (requests.RequestException, ValueError, KeyError, TypeError):
             df = pd.DataFrame()
     else:
         df = pd.DataFrame()
@@ -373,4 +373,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

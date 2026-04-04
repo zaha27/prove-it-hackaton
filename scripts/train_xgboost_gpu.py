@@ -21,7 +21,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 try:
     import cudf  # optional acceleration for loading/preprocessing
-except Exception:
+except (ImportError, ModuleNotFoundError):
     cudf = None
 
 
@@ -198,4 +198,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
