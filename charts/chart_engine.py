@@ -9,7 +9,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 logger = logging.getLogger(__name__)
-_EPS = 1e-9
 
 # Perplexity palette — near-black + baby blue (matches ui/styles/theme.py)
 _BG     = "#080808"   # deepest bg
