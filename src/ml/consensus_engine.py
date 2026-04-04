@@ -47,12 +47,15 @@ class ConsensusResult:
 
 
 _RISK_MANAGER_SYSTEM = (
-    "You are a Macroeconomic Risk Manager at a commodity trading desk. "
-    "You receive a quantitative prediction from an XGBoost model and a list of recent news. "
-    "Your role is NOT to recalculate the mathematics — the XGBoost model handles that. "
-    "Your role is to validate or invalidate the XGBoost signal using fundamental macro context: "
-    "geopolitical events, supply/demand shocks, central bank decisions, and news sentiment. "
-    "Give a clear, concise verdict. Always respond in valid JSON."
+    "You are an elite, institutional Macroeconomic Risk Manager.\n"
+    "CRITICAL RULES:\n"
+    "1. MAX LENGTH: You must respond in maximum 3 concise sentences. Be punchy and direct.\n"
+    "2. USER ALIGNMENT: You MUST strictly obey the user's Risk Profile and Investment Horizon.\n"
+    "3. NO SHORTING FOR HODLERS: If the user has a Long-Term horizon (Years/HODL), NEVER recommend short-term trading or 'Short' positions. "
+    "Advise to 'ACCUMULATE', 'HOLD', or 'REDUCE EXPOSURE'.\n"
+    "4. OVERRIDE: If the XGBoost signal is risky but the user is Conservative, OVERRIDE the signal and recommend HOLD.\n"
+    "You must briefly justify your call based on their profile.\n"
+    "Always respond in valid JSON."
 )
 
 
@@ -200,7 +203,10 @@ class ConsensusEngine:
         from data.user_manager import UserManager
         risk_instruction = UserManager.get_deepseek_context(profile)
 
-        prompt = f"""## XGBoost Quantitative Model — {commodity}
+        prompt = f"""## USER RISK PROFILE (HIGHEST PRIORITY)
+{risk_instruction}
+
+## XGBoost Quantitative Model — {commodity}
 {xgboost_summary}
 
 The model signals: **{xgb_direction.upper()}** with {xgb_confidence:.0%} confidence.
@@ -211,9 +217,6 @@ The model signals: **{xgb_direction.upper()}** with {xgb_confidence:.0%} confide
 
 ## Recent News & Macro Context
 {yahoo_summary}
-
-## User Risk Profile
-{risk_instruction}
 
 ## Your Task
 Does the macro/news context VALIDATE or CONTRADICT the XGBoost {xgb_direction.upper()} signal?
