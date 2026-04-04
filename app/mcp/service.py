@@ -1,6 +1,7 @@
 """MCP service module."""
 
 import os
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -28,6 +29,7 @@ class MCPService:
         self._deepseek_client = DeepSeekClient()
         self._gemini_api_key = config.gemini_api_key
         self._use_real_gemini = bool(self._gemini_api_key)
+        self._logger = logging.getLogger(__name__)
 
     async def get_context(self, request: MCPContextRequest) -> MCPContextResponse:
         """
@@ -280,7 +282,10 @@ class MCPService:
             ohlcv = yf_client.fetch_ohlcv(commodity, period="60d")
             df = ohlcv.to_dataframe()
             if df.empty:
-                raise ValueError(f"No OHLCV data available for {commodity}")
+                raise ValueError(
+                    f"No OHLCV data available for {commodity} (period: 60d). "
+                    "Verify the symbol is valid and market data is accessible."
+                )
 
             # Engineer features with sentiment
             df_features = feature_engineer.engineer_features(df, news_sentiment)
@@ -347,6 +352,10 @@ class MCPService:
                 fetched_at=datetime.utcnow(),
             )
         except Exception as exc:
+            error_id = f"{commodity}-{int(datetime.utcnow().timestamp())}"
+            self._logger.exception(
+                "Consensus generation failed for %s (error_id=%s)", commodity, error_id
+            )
             # Return a safe fallback payload so API stays responsive instead of 500.
             return ConsensusResponse(
                 commodity=commodity,
@@ -359,7 +368,10 @@ class MCPService:
                 debate_history=[],
                 xgboost_input={},
                 yahoo_news_summary="",
-                final_reasoning=f"Consensus unavailable due to runtime error: {exc}",
+                final_reasoning=(
+                    "Consensus temporarily unavailable due to an internal processing "
+                    f"error (ref: {error_id}). Please retry shortly."
+                ),
                 gemma4_final_position={},
                 deepseek_final_position={},
                 fetched_at=datetime.utcnow(),

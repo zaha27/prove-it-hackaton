@@ -263,13 +263,13 @@ class PanelAI(QWidget):
 
             <div style="margin: 30px 0;">
                 <div style="display: inline-block; animation: pulse 1.5s infinite;">
-                    <span style="font-size: 14px; color: #93C5FD; font-family: Menlo, monospace;">GEMMA4</span>
+                    <span style="font-size: 14px; color: #93C5FD; font-family: Menlo, monospace;">Gemma4</span>
                 </div>
                 <div style="display: inline-block; margin: 0 20px; animation: bounce 1s infinite;">
                     <span style="font-size: 32px; color: #6B7280;">⟷</span>
                 </div>
                 <div style="display: inline-block; animation: pulse 1.5s infinite 0.5s;">
-                    <span style="font-size: 14px; color: #4ADE80; font-family: Menlo, monospace;">DEEPSEEK</span>
+                    <span style="font-size: 14px; color: #4ADE80; font-family: Menlo, monospace;">DeepSeek</span>
                 </div>
             </div>
 
