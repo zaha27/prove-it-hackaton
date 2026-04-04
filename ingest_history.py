@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import math
 from dataclasses import dataclass
 from typing import Any
 import logging
@@ -34,6 +33,7 @@ TARGET_HORIZONS = (1, 3, 7, 14, 30)
 UPSERT_BATCH_SIZE = 256
 SCROLL_BATCH_SIZE = 1000
 TRAIN_TEST_SPLIT_RATIO = 0.8
+MIN_ROWS_FOR_SPLIT = 5
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +50,9 @@ def _safe_float(value: Any) -> float:
     try:
         if pd.isna(value):
             return 0.0
+        return float(value)
     except (TypeError, ValueError):
         return 0.0
-    return float(value)
 
 
 def _feature_vector(feature_values: list[float], size: int = VECTOR_SIZE) -> list[float]:
@@ -70,9 +70,9 @@ def _feature_vector(feature_values: list[float], size: int = VECTOR_SIZE) -> lis
 
 
 def _row_id(symbol: str, date: str) -> int:
-    digest = hashlib.sha256(f"{symbol}:{date}".encode("utf-8")).hexdigest()[:16]
-    # Qdrant integer IDs must fit signed int64.
-    return int(digest, 16) % (2**63)
+    digest = hashlib.sha256(f"{symbol}:{date}".encode("utf-8")).hexdigest()
+    # Keep 63 bits from the hash directly (no modulo wrap-around).
+    return int(digest[:16], 16) & ((1 << 63) - 1)
 
 
 def _prepare_symbol_dataframe(symbol: str, years: int) -> pd.DataFrame:
@@ -223,14 +223,14 @@ def get_training_data(
         raise ValueError(f"No training data found in Qdrant for symbol={symbol}")
 
     records.sort(key=lambda x: x["date"])
-    X = pd.DataFrame([r["features"] for r in records]).apply(pd.to_numeric, errors="coerce")
+    X = pd.DataFrame.from_records([r["features"] for r in records], coerce_float=True)
     y = pd.Series([r["target"] for r in records], name=target_col)
 
     valid = X.notna().all(axis=1) & y.notna()
     X = X.loc[valid].reset_index(drop=True)
     y = y.loc[valid].reset_index(drop=True)
 
-    if len(X) < 5:
+    if len(X) < MIN_ROWS_FOR_SPLIT:
         raise ValueError(f"Not enough rows for train/test split for {symbol}: {len(X)}")
 
     split_idx = _calculate_chronological_split_index(len(X), TRAIN_TEST_SPLIT_RATIO)
@@ -240,13 +240,14 @@ def get_training_data(
 
 
 def _calculate_chronological_split_index(total_rows: int, ratio: float) -> int:
-    desired_split_idx = math.floor(total_rows * ratio)
+    desired_split_idx = int(total_rows * ratio)
     min_split_idx = 1
     max_split_idx = total_rows - 1
     return max(min_split_idx, min(max_split_idx, desired_split_idx))
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     parser = argparse.ArgumentParser(description="Ingest 5-year historical data into Qdrant.")
     parser.add_argument("--years", type=int, default=5, help="Years of historical data to ingest")
     parser.add_argument(
