@@ -3,6 +3,7 @@ data/news.py — News fetching via Yahoo Finance only.
 """
 import logging
 from datetime import datetime
+import re
 from urllib.parse import urlparse
 
 import requests
@@ -25,6 +26,7 @@ _SYMBOL_MAP = {
 
 _GDELT_BASE_URL = "https://api.gdeltproject.org/api/v2/context/context"
 _GDELT_QUERY = "(economy OR conflict OR energy) domainis:reuters.com"
+_MAX_GDELT_RESULTS = 50
 _COUNTRY_KEYWORDS_ISO3 = {
     "iran": "IRN",
     "ukraine": "UKR",
@@ -74,9 +76,19 @@ def _normalize_timestamp(article: dict) -> str:
 def _infer_country_iso3(title: str) -> str | None:
     lowered = (title or "").lower()
     for keyword, iso3 in _COUNTRY_KEYWORDS_ISO3.items():
-        if keyword in lowered:
+        if re.search(rf"\b{re.escape(keyword)}\b", lowered):
             return iso3
     return None
+
+
+def _sentiment_from_text(text: str) -> tuple[str, float]:
+    scores = _sentiment_analyzer.polarity_scores(text or "")
+    compound = scores["compound"]
+    if compound >= 0.05:
+        return "positive", compound
+    if compound <= -0.05:
+        return "negative", compound
+    return "neutral", compound
 
 
 def fetch_real_world_news(limit: int = 50) -> list[dict]:
@@ -85,7 +97,7 @@ def fetch_real_world_news(limit: int = 50) -> list[dict]:
 
     Returns a list of dicts compatible with NewsCard UI.
     """
-    safe_limit = max(1, min(int(limit), 50))
+    safe_limit = max(1, min(int(limit), _MAX_GDELT_RESULTS))
     params = {
         "query": _GDELT_QUERY,
         "mode": "artlist",
@@ -106,13 +118,14 @@ def fetch_real_world_news(limit: int = 50) -> list[dict]:
     for article in articles[:safe_limit]:
         title = str(article.get("title") or "").strip()
         url = str(article.get("url") or "").strip()
+        sentiment, _ = _sentiment_from_text(title)
 
         mapped = {
             "title": title,
             "source": _extract_source(article),
             "timestamp": _normalize_timestamp(article),
             "url": url,
-            "sentiment": "neutral",
+            "sentiment": sentiment,
             "summary": "",
         }
         country_iso3 = _infer_country_iso3(title)
