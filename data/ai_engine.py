@@ -6,10 +6,10 @@ Architecture: XGBoost (Quant) → DeepSeek (Risk Manager)
     - XGBoost prediction is the quantitative signal
     - DeepSeek validates/invalidates it against macro news
 """
-import json
 import logging
 import os
 from typing import Optional
+from data.user_manager import UserManager
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +28,6 @@ _PROMPT_TEMPLATE = """USER RISK PROFILE: {risk_profile} (1-Conservative, 3-Balan
 XGBOOST PREDICTION: {xgboost_pred_pct}% (Confidence: {xgb_confidence})
 MACRO CONTEXT: {news_summary}
 Give the final verdict."""
-
-_SYMBOLS = {
-    "GC=F": "Gold", "SI=F": "Silver", "CL=F": "Crude Oil",
-    "NG=F": "Natural Gas", "ZW=F": "Wheat", "HG=F": "Copper",
-}
-
 
 def get_ai_insight(
     symbol: str,
@@ -71,7 +65,7 @@ def get_ai_insight(
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=150,
+            max_tokens=min(int(os.getenv("LLM_MAX_TOKENS", "150")), 200),
             temperature=0.3,
         )
         return response.choices[0].message.content or ""
@@ -81,8 +75,6 @@ def get_ai_insight(
 
 
 def _build_prompt(symbol: str, xgboost_prediction: dict, news_list: list[dict]) -> str:
-    _ = _SYMBOLS.get(symbol, symbol)
-
     # XGBoost signal
     prediction = float(xgboost_prediction.get("prediction", 0))
     confidence = float(xgboost_prediction.get("confidence", 0))
@@ -92,7 +84,6 @@ def _build_prompt(symbol: str, xgboost_prediction: dict, news_list: list[dict]) 
 
     risk_profile = "Balanced"
     try:
-        from data.user_manager import UserManager
         risk_profile = UserManager.get_risk_profile_string(UserManager.load_profile())
     except Exception as exc:
         logger.warning("Failed to load user risk profile for %s: %s", symbol, exc)
