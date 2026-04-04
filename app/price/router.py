@@ -1,5 +1,6 @@
 """Price API router."""
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 
@@ -8,6 +9,7 @@ from app.price.models import PriceDataResponse, LatestPriceResponse
 from app.core.dependencies import get_price_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get(
@@ -72,19 +74,19 @@ async def get_macro_events(service: PriceService = Depends(get_price_service)):
     Fetch latest price changes for all commodities and return them as
     geo-located events compatible with WorldMapWidget.load_events().
 
-    Event format: {title, lat, lon, severity, category, country, summary}
+    Event format: {title, lat, lon, severity, category, country, country_iso3, summary}
     """
     import asyncio
     from src.data.config import config
 
     # Country coordinates for main commodity producers/consumers
-    _GEO: dict[str, tuple[float, float, str]] = {
-        "GOLD":        (-25.3, 131.0, "Australia"),
-        "SILVER":      (23.6, -102.5, "Mexico"),
-        "OIL":         (24.7,  46.7,  "Saudi Arabia"),
-        "NATURAL_GAS": (55.7,  37.6,  "Russia"),
-        "WHEAT":       (50.4,  30.5,  "Ukraine"),
-        "COPPER":      (-23.7, -68.0, "Chile"),
+    _GEO: dict[str, tuple[float, float, str, str]] = {
+        "GOLD":        (-25.3, 131.0, "Australia", "AUS"),
+        "SILVER":      (23.6, -102.5, "Mexico", "MEX"),
+        "OIL":         (24.7,  46.7,  "Saudi Arabia", "SAU"),
+        "NATURAL_GAS": (55.7,  37.6,  "Russia", "RUS"),
+        "WHEAT":       (50.4,  30.5,  "Ukraine", "UKR"),
+        "COPPER":      (-23.7, -68.0, "Chile", "CHL"),
     }
     _CATEGORY: dict[str, str] = {
         "GOLD": "metals", "SILVER": "metals", "COPPER": "metals",
@@ -111,7 +113,11 @@ async def get_macro_events(service: PriceService = Depends(get_price_service)):
                 severity = "low"
 
             direction = "up" if change >= 0 else "down"
-            lat, lon, country = _GEO.get(commodity, (0.0, 0.0, commodity))
+            if commodity not in _GEO:
+                logger.warning("No geo mapping for commodity %s in macro-events endpoint", commodity)
+                return None
+
+            lat, lon, country, country_iso3 = _GEO[commodity]
             return {
                 "title":    f"{commodity} {direction} {abs(change):.2f}% — ${price:,.2f}",
                 "lat":      lat,
@@ -119,6 +125,7 @@ async def get_macro_events(service: PriceService = Depends(get_price_service)):
                 "severity": severity,
                 "category": _CATEGORY.get(commodity, "market"),
                 "country":  country,
+                "country_iso3": country_iso3,
                 "summary":  f"24h change: {change:+.2f}% | Price: ${price:,.2f}",
             }
         except Exception:

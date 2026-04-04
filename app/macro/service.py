@@ -3,6 +3,7 @@
 from typing import List
 
 from app.macro.models import MacroNewsItem
+from data.macro_insight_text import WORLD_MACRO_INSIGHT_TEXT
 
 
 class MacroService:
@@ -70,26 +71,4 @@ class MacroService:
 
     async def get_macro_insight(self) -> str:
         """Return a detailed mock global macroeconomic overview."""
-        return (
-            "Macro Context (Dobânzi/Bănci Centrale): În ultimele trimestre, "
-            "dezinflația avansează lent, dar componentele de servicii și salariile "
-            "rămân reziliente, ceea ce menține băncile centrale majore într-un regim "
-            "restrictiv și dependent de date. FED și BCE transmit că ritmul potențial "
-            "al relaxării monetare va fi gradual, pentru a evita o reaprindere a "
-            "inflației de bază, iar această combinație susține costuri de finanțare "
-            "ridicate pentru companii și state. "
-            "Geopolitică & Supply Chain: Tensiunile din coridoarele maritime, inclusiv "
-            "zona Mării Roșii, continuă să crească volatilitatea costurilor logistice, "
-            "să extindă timpii de tranzit și să introducă prime de risc în prețurile "
-            "energiei, metalelor și bunurilor intermediare. În paralel, cererea din "
-            "China arată semne de stabilizare pe segmentele legate de infrastructură, "
-            "dar rămâne neuniformă în consumul intern, ceea ce produce impulsuri "
-            "asimetice între commodities industriale și cele defensive. "
-            "Concluzie / Risc Global: Piața globală a materiilor prime rămâne într-un "
-            "echilibru fragil între politica monetară încă restrictivă și șocurile "
-            "geopolitice recurente asupra ofertei. Scenariul de bază sugerează "
-            "volatilitate ridicată cu episoade de repricing rapid, iar riscul principal "
-            "pe termen scurt este o combinație între blocaje logistice persistente și "
-            "surprize inflaționiste care întârzie relaxarea dobânzilor."
-        )
-
+        return WORLD_MACRO_INSIGHT_TEXT

@@ -4,6 +4,7 @@ No API keys required.
 """
 from datetime import datetime, timedelta
 import random
+from data.macro_insight_text import WORLD_MACRO_INSIGHT_TEXT
 
 # Seed per symbol for reproducible "random" data
 _BASE_PRICES = {
@@ -102,6 +103,7 @@ _MOCK_NEWS = {
 }
 
 _MOCK_AI_INSIGHTS = {
+    "Macro": WORLD_MACRO_INSIGHT_TEXT,
     "GC=F": (
         "**Chain-of-Thought Analysis — Gold (GC=F)**\n\n"
         "Step 1 — Macro context: The Fed's pause narrative is the dominant driver. "
@@ -227,15 +229,35 @@ def get_macro_events() -> list[dict]:
     Return geo-located macro events for the World Macro View map.
 
     Contract matches world-monitor NewsItem/Hotspot structure:
-        title, lat, lon, severity ("high"|"medium"|"low"), category, country, summary
+        title, lat, lon, severity ("high"|"medium"|"low"), category, country,
+        country_iso3 (required for choropleth heat contribution), summary
     """
     return [
+        {
+            "title": "Iran Signals Potential Transit Friction in the Strait of Hormuz",
+            "lat": 26.5, "lon": 56.2,
+            "severity": "high",
+            "category": "energy",
+            "country": "Iran",
+            "country_iso3": "IRN",
+            "summary": "Tanker risk premiums rise as traders reassess disruption risk at a critical crude chokepoint.",
+        },
+        {
+            "title": "Naval Escorts Expanded Near Hormuz After Drone Incident",
+            "lat": 25.8, "lon": 54.9,
+            "severity": "high",
+            "category": "energy",
+            "country": "Iran",
+            "country_iso3": "IRN",
+            "summary": "Security operations intensify around tanker lanes, lifting front-month oil volatility.",
+        },
         {
             "title": "OPEC+ Emergency Meeting — Output Decision Pending",
             "lat": 24.7, "lon": 46.7,
             "severity": "high",
             "category": "energy",
             "country": "Saudi Arabia",
+            "country_iso3": "SAU",
             "summary": "Alliance considering additional 500k bpd cut amid demand slowdown concerns.",
         },
         {
@@ -244,7 +266,26 @@ def get_macro_events() -> list[dict]:
             "severity": "high",
             "category": "energy",
             "country": "Russia",
+            "country_iso3": "RUS",
             "summary": "Flow volumes down 35% week-on-week; European storage drawdown accelerating.",
+        },
+        {
+            "title": "Black Sea Port Infrastructure Hit, Wheat Loadings Delayed",
+            "lat": 46.5, "lon": 30.7,
+            "severity": "high",
+            "category": "agriculture",
+            "country": "Ukraine",
+            "country_iso3": "UKR",
+            "summary": "Export scheduling uncertainty increases risk premium in global wheat contracts.",
+        },
+        {
+            "title": "Russian Navy Activity Intensifies in Central Black Sea Corridor",
+            "lat": 44.8, "lon": 37.6,
+            "severity": "high",
+            "category": "agriculture",
+            "country": "Russia",
+            "country_iso3": "RUS",
+            "summary": "Commercial shippers face route adjustments, adding friction to grain logistics.",
         },
         {
             "title": "Ukraine Grain Corridor Extension Agreed for 60 Days",
@@ -252,7 +293,8 @@ def get_macro_events() -> list[dict]:
             "severity": "medium",
             "category": "agriculture",
             "country": "Ukraine",
-            "summary": "UN-brokered deal allows continued Black Sea wheat and corn exports.",
+            "country_iso3": "UKR",
+            "summary": "UN-brokered framework supports continued Black Sea wheat and corn exports.",
         },
         {
             "title": "Chile Copper Miners Strike — Escondida Output Halted",
@@ -260,6 +302,7 @@ def get_macro_events() -> list[dict]:
             "severity": "high",
             "category": "metals",
             "country": "Chile",
+            "country_iso3": "CHL",
             "summary": "Workers at world's largest copper mine vote to extend strike into third week.",
         },
         {
@@ -268,6 +311,7 @@ def get_macro_events() -> list[dict]:
             "severity": "medium",
             "category": "market",
             "country": "USA",
+            "country_iso3": "USA",
             "summary": "Powell reiterates restrictive stance; markets pricing in 60% chance of pause.",
         },
         {
@@ -276,6 +320,7 @@ def get_macro_events() -> list[dict]:
             "severity": "medium",
             "category": "market",
             "country": "China",
+            "country_iso3": "CHN",
             "summary": "CNY 1.5T infrastructure bond issuance supports copper and steel demand outlook.",
         },
         {
@@ -284,7 +329,35 @@ def get_macro_events() -> list[dict]:
             "severity": "high",
             "category": "energy",
             "country": "Iran",
+            "country_iso3": "IRN",
             "summary": "Additional sanctions could remove 800k bpd from global supply.",
+        },
+        {
+            "title": "Red Sea Shipping Route Re-Risked After New Houthi Strike Claims",
+            "lat": 15.9, "lon": 42.5,
+            "severity": "high",
+            "category": "energy",
+            "country": "Yemen",
+            "country_iso3": "YEM",
+            "summary": "Shipowners increase rerouting rates, extending delivery times for fuels and grains.",
+        },
+        {
+            "title": "Container and Tanker Transit Through Bab el-Mandeb Falls Again",
+            "lat": 12.6, "lon": 43.4,
+            "severity": "high",
+            "category": "energy",
+            "country": "Yemen",
+            "country_iso3": "YEM",
+            "summary": "Persistent Red Sea security concerns sustain freight and insurance surcharges.",
+        },
+        {
+            "title": "Suez Canal Authority Reports Lower Throughput Versus Prior Quarter",
+            "lat": 30.0, "lon": 32.5,
+            "severity": "medium",
+            "category": "energy",
+            "country": "Egypt",
+            "country_iso3": "EGY",
+            "summary": "Reduced Red Sea flows support higher shipping costs and regional refined product spreads.",
         },
         {
             "title": "Australian Gold Output Hits 5-Year High",
@@ -292,6 +365,7 @@ def get_macro_events() -> list[dict]:
             "severity": "low",
             "category": "metals",
             "country": "Australia",
+            "country_iso3": "AUS",
             "summary": "Q1 production up 12% YoY; lower production costs support miner margins.",
         },
         {
@@ -300,6 +374,7 @@ def get_macro_events() -> list[dict]:
             "severity": "medium",
             "category": "market",
             "country": "Germany",
+            "country_iso3": "DEU",
             "summary": "Eurozone inflation remains above target; further hikes dependent on Q2 CPI print.",
         },
         {
@@ -308,6 +383,34 @@ def get_macro_events() -> list[dict]:
             "severity": "medium",
             "category": "agriculture",
             "country": "Burkina Faso",
+            "country_iso3": "BFA",
             "summary": "USDA cuts regional wheat output by 8%; local food security concerns rise.",
+        },
+        {
+            "title": "Argentina Corn and Wheat Belt Hit by Fresh Moisture Deficit",
+            "lat": -34.6, "lon": -58.4,
+            "severity": "medium",
+            "category": "agriculture",
+            "country": "Argentina",
+            "country_iso3": "ARG",
+            "summary": "Yield risk widens in key export provinces, supporting global feed grain prices.",
+        },
+        {
+            "title": "US Gulf Refineries Increase Crude Runs Ahead of Summer Demand",
+            "lat": 29.7, "lon": -95.3,
+            "severity": "low",
+            "category": "energy",
+            "country": "USA",
+            "country_iso3": "USA",
+            "summary": "Higher throughput eases product tightness but keeps crude intake elevated.",
+        },
+        {
+            "title": "India Raises Edible Oil Import Monitoring as Freight Costs Climb",
+            "lat": 19.1, "lon": 72.9,
+            "severity": "low",
+            "category": "agriculture",
+            "country": "India",
+            "country_iso3": "IND",
+            "summary": "Authorities flag transport-driven food inflation risks from prolonged Red Sea disruption.",
         },
     ]
