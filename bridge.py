@@ -7,7 +7,8 @@ from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
 LIVE_REFRESH_INTERVAL_MS = 30_000
-DEFAULT_TIMEFRAME = "1M"
+DEFAULT_RANGE = "1Y"
+DEFAULT_INTERVAL = "1D"
 
 
 class _FetchWorker(QThread):
@@ -22,25 +23,31 @@ class _FetchWorker(QThread):
     def __init__(
         self,
         symbol: str,
-        period_days: int = 30,
+        range_str: str = DEFAULT_RANGE,
+        interval_str: str = DEFAULT_INTERVAL,
         include_context: bool = True,
         use_mock: bool = False,
         parent=None,
     ):
         super().__init__(parent)
         self.symbol = symbol
-        self.period_days = period_days
+        self.range_str = range_str
+        self.interval_str = interval_str
         self.include_context = include_context
         self.use_mock = use_mock
 
     def run(self) -> None:
         try:
             from data import market
-            price_data = market.get_price_data(self.symbol, period_days=self.period_days)
+            price_data = market.get_price_data(
+                self.symbol,
+                range_str=self.range_str,
+                interval_str=self.interval_str,
+            )
             if price_data is None:
                 logger.warning("Live market fetch failed for %s; falling back to mock chart data", self.symbol)
                 from data import mock_data
-                price_data = mock_data.get_price_data(self.symbol, period_days=self.period_days)
+                price_data = mock_data.get_price_data(self.symbol)
                 if price_data is None:
                     self.error_occurred.emit(f"Price data unavailable for {self.symbol}")
                     return
@@ -78,14 +85,8 @@ class AppBridge(QObject):
         self._panel_chart = panel_chart
         self._use_mock = use_mock
         self._worker: _FetchWorker | None = None
-        self._current_timeframe: str = DEFAULT_TIMEFRAME
-        self._timeframe_days: dict[str, int] = {
-            "1W": 7,
-            "1M": 30,
-            "3M": 90,
-            "6M": 180,
-            "1Y": 365,
-        }
+        self._current_range: str = DEFAULT_RANGE
+        self._current_interval: str = DEFAULT_INTERVAL
 
         # Connect sidebar signals
         self._window.sidebar.commodity_selected.connect(self.on_select)
@@ -110,12 +111,13 @@ class AppBridge(QObject):
         if self._current_symbol:
             self._fetch(self._current_symbol, include_context=True)
 
-    def _on_timeframe_changed(self, timeframe: str) -> None:
+    def _on_timeframe_changed(self, range_val: str, interval_val: str) -> None:
         """
-        Re-fetch when timeframe changes.
+        Re-fetch when range or interval changes.
         """
-        self._current_timeframe = timeframe if timeframe in self._timeframe_days else DEFAULT_TIMEFRAME
-        logger.info("Timeframe changed to %s", self._current_timeframe)
+        self._current_range = range_val if range_val in {"6M", "1Y", "5Y", "Max"} else DEFAULT_RANGE
+        self._current_interval = interval_val if interval_val in {"1D", "1W", "1M"} else DEFAULT_INTERVAL
+        logger.info("Timeframe changed: range=%s interval=%s", self._current_range, self._current_interval)
         if self._current_symbol:
             self._fetch(self._current_symbol)
 
@@ -133,10 +135,10 @@ class AppBridge(QObject):
         self._window.set_loading(True)
         self._window.update_status(symbol, None)
 
-        period_days = self._timeframe_days.get(self._current_timeframe, 30)
         self._worker = _FetchWorker(
             symbol,
-            period_days=period_days,
+            range_str=self._current_range,
+            interval_str=self._current_interval,
             include_context=include_context,
             use_mock=self._use_mock,
         )

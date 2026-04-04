@@ -1,11 +1,10 @@
 """
-charts/panel_chart.py — Chart panel with timeframe toolbar and indicator selector.
-# TODO: Dev2 — wire timeframe buttons to re-fetch data for the selected period
+charts/panel_chart.py — Chart panel with range/interval toolbar and indicator selector.
 """
 import logging
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, QLabel,
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, QLabel, QButtonGroup,
 )
 from PyQt6.QtCore import pyqtSignal
 
@@ -13,24 +12,26 @@ from charts.chart_widget import ChartWidget
 
 logger = logging.getLogger(__name__)
 
-_TIMEFRAMES = ["1W", "1M", "3M", "6M", "1Y"]
+_RANGES = ["6M", "1Y", "5Y", "Max"]
+_INTERVALS = ["1D", "1W", "1M"]
 _INDICATORS = ["None", "Bollinger Bands", "RSI", "MACD"]
 
 
 class PanelChart(QWidget):
     """
-    Chart panel combining ChartWidget with a timeframe/indicator toolbar.
+    Chart panel combining ChartWidget with a range/interval/indicator toolbar.
 
     Signals:
-        timeframe_changed(str): emitted when the user selects a different timeframe.
+        timeframe_changed(str, str): emitted when the user selects a range or interval.
     """
 
-    timeframe_changed = pyqtSignal(str)
+    timeframe_changed = pyqtSignal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._chart_widget = ChartWidget()
-        self._active_tf = "1M"
+        self._active_range = "1Y"
+        self._active_interval = "1D"
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -42,20 +43,13 @@ class PanelChart(QWidget):
 
     def _build_toolbar(self) -> QWidget:
         bar = QWidget()
-        bar.setFixedHeight(42)
+        bar.setFixedHeight(70)
         bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
-        hbox = QHBoxLayout(bar)
-        hbox.setContentsMargins(18, 0, 18, 0)
-        hbox.setSpacing(4)
+        vbox = QVBoxLayout(bar)
+        vbox.setContentsMargins(18, 6, 18, 6)
+        vbox.setSpacing(4)
 
-        lbl = QLabel("Timeframe")
-        lbl.setStyleSheet(
-            "color:#374151; font-size:11px; font-weight:500;"
-            "letter-spacing:0.3px; margin-right:4px;"
-        )
-        hbox.addWidget(lbl)
-
-        _TF_BTN = (
+        _BTN_STYLE = (
             "QPushButton {"
             "  background:#111111; color:#6B7280;"
             "  border:1px solid #1C1C1C; border-radius:5px;"
@@ -67,24 +61,46 @@ class PanelChart(QWidget):
             "  color:#93C5FD; font-weight:600;"
             "}"
         )
-        self._tf_buttons: dict[str, QPushButton] = {}
-        for tf in _TIMEFRAMES:
-            btn = QPushButton(tf)
+
+        range_row = QHBoxLayout()
+        range_row.setSpacing(4)
+        range_row.addWidget(self._make_toolbar_label("Range"))
+        self._range_group = QButtonGroup(self)
+        self._range_group.setExclusive(True)
+        self._range_buttons: dict[str, QPushButton] = {}
+        for value in _RANGES:
+            btn = QPushButton(value)
             btn.setCheckable(True)
-            btn.setChecked(tf == self._active_tf)
-            btn.setStyleSheet(_TF_BTN)
-            btn.clicked.connect(lambda checked, t=tf: self._on_timeframe(t))
-            hbox.addWidget(btn)
-            self._tf_buttons[tf] = btn
+            btn.setChecked(value == self._active_range)
+            btn.setStyleSheet(_BTN_STYLE)
+            btn.clicked.connect(lambda checked, v=value: self._on_range(v) if checked else None)
+            self._range_group.addButton(btn)
+            self._range_buttons[value] = btn
+            range_row.addWidget(btn)
 
-        hbox.addSpacing(16)
+        interval_row = QHBoxLayout()
+        interval_row.setSpacing(4)
+        interval_row.addWidget(self._make_toolbar_label("Interval"))
+        self._interval_group = QButtonGroup(self)
+        self._interval_group.setExclusive(True)
+        self._interval_buttons: dict[str, QPushButton] = {}
+        for value in _INTERVALS:
+            btn = QPushButton(value)
+            btn.setCheckable(True)
+            btn.setChecked(value == self._active_interval)
+            btn.setStyleSheet(_BTN_STYLE)
+            btn.clicked.connect(lambda checked, v=value: self._on_interval(v) if checked else None)
+            self._interval_group.addButton(btn)
+            self._interval_buttons[value] = btn
+            interval_row.addWidget(btn)
 
+        range_row.addSpacing(16)
         lbl2 = QLabel("Indicator")
         lbl2.setStyleSheet(
             "color:#374151; font-size:11px; font-weight:500;"
             "letter-spacing:0.3px; margin-right:4px;"
         )
-        hbox.addWidget(lbl2)
+        range_row.addWidget(lbl2)
 
         self._indicator_combo = QComboBox()
         self._indicator_combo.addItems(_INDICATORS)
@@ -99,16 +115,30 @@ class PanelChart(QWidget):
             "  background:#111111; color:#D1D5DB;"
             "  border:1px solid #1C1C1C; selection-background-color:#1E3A5F; }"
         )
-        hbox.addWidget(self._indicator_combo)
-        hbox.addStretch()
+        range_row.addWidget(self._indicator_combo)
+        range_row.addStretch()
+        interval_row.addStretch()
+
+        vbox.addLayout(range_row)
+        vbox.addLayout(interval_row)
         return bar
 
-    def _on_timeframe(self, tf: str) -> None:
-        self._active_tf = tf
-        for name, btn in self._tf_buttons.items():
-            btn.setChecked(name == tf)
-        self.timeframe_changed.emit(tf)
-        # TODO: Dev2 — trigger re-fetch for the selected timeframe period
+    @staticmethod
+    def _make_toolbar_label(text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setStyleSheet(
+            "color:#374151; font-size:11px; font-weight:500;"
+            "letter-spacing:0.3px; margin-right:4px;"
+        )
+        return lbl
+
+    def _on_range(self, value: str) -> None:
+        self._active_range = value
+        self.timeframe_changed.emit(self._active_range, self._active_interval)
+
+    def _on_interval(self, value: str) -> None:
+        self._active_interval = value
+        self.timeframe_changed.emit(self._active_range, self._active_interval)
 
     def _on_indicator_change(self, text: str) -> None:
         mapping = {
