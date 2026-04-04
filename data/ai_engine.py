@@ -14,30 +14,20 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
-    "You are a Macroeconomic Risk Manager at a commodity trading desk. "
-    "You receive a quantitative prediction from an XGBoost model and a list of recent news headlines. "
-    "Your role is NOT to recalculate the mathematics — the XGBoost model handles that. "
-    "Your role is to validate or invalidate the XGBoost signal using fundamental macro context: "
-    "geopolitical events, supply/demand shocks, central bank decisions, and news sentiment. "
-    "Structure your response as: "
-    "1. XGBoost Signal Summary → 2. News/Macro Context → 3. Validation or Override → 4. Final Verdict. "
-    "Be concise and data-driven."
+    "You are an elite, hyper-concise Quantitative Portfolio Manager. "
+    "You receive an XGBoost mathematical prediction, global macro news, and the User's Risk Profile.\n"
+    "YOUR RULES:\n"
+    "- Maximum 4 short sentences or 3 crisp bullet points. NO rambling.\n"
+    "- You MUST explicitly state how the User's Risk Profile alters the XGBoost recommendation.\n"
+    "- If Risk is 'Conservative' and XGBoost predicts a small gain but news shows volatility, "
+    "OVERRIDE the model and recommend HOLD/AVOID.\n"
+    "- Use a cold, professional, institutional tone."
 )
 
-_PROMPT_TEMPLATE = """## XGBoost Quantitative Signal — {symbol_name} ({symbol})
-
-**Model output:**
-- Direction: {xgb_direction}
-- Predicted change: {xgb_prediction}
-- Confidence: {xgb_confidence}
-
-## Recent News Headlines
-{news_summary}
-
-## Your Task
-Does the macro/news context VALIDATE or CONTRADICT the XGBoost {xgb_direction} signal?
-Provide your Reality Check verdict with a final recommendation (BUY / HOLD / SELL).
-"""
+_PROMPT_TEMPLATE = """USER RISK PROFILE: {risk_profile} (1-Conservative, 3-Balanced, 5-Aggressive)
+XGBOOST PREDICTION: {xgboost_pred_pct}% (Confidence: {xgb_confidence})
+MACRO CONTEXT: {news_summary}
+Give the final verdict."""
 
 _SYMBOLS = {
     "GC=F": "Gold", "SI=F": "Silver", "CL=F": "Crude Oil",
@@ -81,7 +71,7 @@ def get_ai_insight(
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=int(os.getenv("LLM_MAX_TOKENS", "1024")),
+            max_tokens=150,
             temperature=0.3,
         )
         return response.choices[0].message.content or ""
@@ -91,21 +81,21 @@ def get_ai_insight(
 
 
 def _build_prompt(symbol: str, xgboost_prediction: dict, news_list: list[dict]) -> str:
-    symbol_name = _SYMBOLS.get(symbol, symbol)
+    _ = _SYMBOLS.get(symbol, symbol)
 
     # XGBoost signal
     prediction = float(xgboost_prediction.get("prediction", 0))
     confidence = float(xgboost_prediction.get("confidence", 0))
 
-    if prediction > 0.005:
-        xgb_direction = "BUY"
-    elif prediction < -0.005:
-        xgb_direction = "SELL"
-    else:
-        xgb_direction = "HOLD"
-
-    xgb_prediction_str = f"{prediction:+.2%}" if xgboost_prediction else "N/A (no XGBoost data)"
+    xgb_prediction_str = f"{prediction:+.2%}" if xgboost_prediction else "N/A"
     xgb_confidence_str = f"{confidence:.0%}" if xgboost_prediction else "N/A"
+
+    risk_profile = "Balanced"
+    try:
+        from data.user_manager import UserManager
+        risk_profile = UserManager.get_risk_profile_string(UserManager.load_profile())
+    except Exception as exc:
+        logger.warning("Failed to load user risk profile for %s: %s", symbol, exc)
 
     # News summary
     if news_list:
@@ -117,10 +107,8 @@ def _build_prompt(symbol: str, xgboost_prediction: dict, news_list: list[dict]) 
         news_summary = "  No news available."
 
     return _PROMPT_TEMPLATE.format(
-        symbol=symbol,
-        symbol_name=symbol_name,
-        xgb_direction=xgb_direction,
-        xgb_prediction=xgb_prediction_str,
+        risk_profile=risk_profile,
+        xgboost_pred_pct=xgb_prediction_str,
         xgb_confidence=xgb_confidence_str,
         news_summary=news_summary,
     )
