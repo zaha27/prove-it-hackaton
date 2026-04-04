@@ -144,6 +144,8 @@ class XGBoostTrainer:
 
     def _get_model_path(self, commodity: str) -> Path:
         """Get model path for a commodity symbol."""
+        if any(sep in commodity for sep in ("/", "\\", "..")):
+            raise ValueError(f"Invalid commodity symbol for model path: {commodity}")
         return self.model_dir / f"xgboost_{commodity}.pkl"
 
     def train_model(
@@ -245,9 +247,13 @@ class XGBoostTrainer:
             raise FileNotFoundError(
                 f"Model file not found for {commodity}: {model_path.name}"
             )
+        if model_path.suffix != ".pkl" or model_path.resolve().parent != self.model_dir.resolve():
+            raise ValueError(f"Invalid model path for {commodity}: {model_path.name}")
 
         with open(model_path, "rb") as f:
             model = pickle.load(f)
+        if not isinstance(model, xgb.XGBRegressor):
+            raise ValueError(f"Invalid model object for {commodity}: {type(model).__name__}")
         self.models[commodity] = model
         return model
 
@@ -264,7 +270,11 @@ class XGBoostTrainer:
         try:
             model = self.load_model(commodity)
         except FileNotFoundError:
-            logger.warning("Model missing for %s; training a new model on demand", commodity)
+            logger.warning(
+                "Model missing for %s (%s); training on demand. Run train_all_models() to prebuild.",
+                commodity,
+                self._get_model_path(commodity).name,
+            )
             model = self.train_model(commodity)
 
         # Convert features to array in correct order
