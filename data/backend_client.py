@@ -169,6 +169,27 @@ def get_news(symbol: str) -> list[dict]:
         return []
 
 
+# ── Macro events (pentru World Map) ───────────────────────────────────────────
+
+def get_macro_events() -> list[dict]:
+    """
+    Fetch geo-located macro events from the backend for the World Map.
+    Returns list of dicts matching WorldMapWidget contract:
+        [{title, lat, lon, severity, category, country, summary}]
+    Returns [] on error (world map will stay empty).
+    """
+    try:
+        resp = requests.get(
+            f"{BACKEND_URL}/api/v1/price/macro-events",
+            timeout=_TIMEOUT_DATA,
+        )
+        resp.raise_for_status()
+        return resp.json().get("events", [])
+    except Exception as exc:
+        logger.error("backend get_macro_events failed: %s", exc)
+        return []
+
+
 # ── AI insight (via /api/v1/mcp/insight) ─────────────────────────────────────
 
 def get_ai_insight(symbol: str, price_data: dict | None, news: list[dict]) -> str:

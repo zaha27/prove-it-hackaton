@@ -133,35 +133,63 @@ class NewsService:
     ) -> list[NewsArticle]:
         """Get market updates for any symbol using Yahoo Finance.
 
+        Generates one article per trading day (up to `limit`, default 5 days).
+
         Args:
             commodity: Symbol (GOLD, EURUSD, SILVER, OIL, etc.)
-            days: Number of days (for compatibility)
-            limit: Maximum updates (for compatibility)
+            days: Number of days to look back
+            limit: Maximum number of articles to return
 
         Returns:
             List of NewsArticle objects with market data
         """
         try:
-            # Fetch price data from Yahoo Finance (pass commodity key, not symbol)
-            current, change_pct = self.yf_client.fetch_latest_price(commodity)
+            n_days = min(max(days, 5), 30)   # fetch at least 5, at most 30 days
+            price_data = self.yf_client.fetch_ohlcv(commodity, period=f"{n_days}d", interval="1d")
 
-            # Generate market update article
-            article = self._generate_market_update(commodity, current, change_pct)
+            articles: list[NewsArticle] = []
+            closes = price_data.close
+            dates  = price_data.dates
 
-            return [article]
+            for i in range(len(closes) - 1, max(len(closes) - limit - 1, -1), -1):
+                current = closes[i]
+                prev    = closes[i - 1] if i > 0 else closes[i]
+                change_pct = ((current - prev) / prev * 100) if prev else 0.0
+                date_str   = dates[i] if i < len(dates) else datetime.now().strftime("%Y-%m-%d")
+
+                article = self._generate_market_update(commodity, current, change_pct)
+                # Override the date/id to match the actual trading day
+                article = NewsArticle(
+                    id=f"market_{commodity}_{date_str.replace('-', '')}",
+                    title=article.title,
+                    source=article.source,
+                    date=date_str,
+                    content=article.content,
+                    url=article.url,
+                    sentiment=article.sentiment,
+                    sentiment_score=article.sentiment_score,
+                    commodity=commodity,
+                    fetched_at=article.fetched_at,
+                )
+                articles.append(article)
+
+            return articles[:limit] if articles else self._fallback_article(commodity)
 
         except Exception as e:
-            # Return error article
-            return [NewsArticle(
-                id=f"error_{commodity}_{datetime.now().strftime('%Y%m%d_%H%M')}",
-                title=f"Unable to fetch data for {commodity}",
-                source="Error",
-                date=datetime.now().strftime("%Y-%m-%d"),
-                content=f"Error fetching data: {e}",
-                sentiment="neutral",
-                sentiment_score=0.0,
-                commodity=commodity,
-            )]
+            return self._fallback_article(commodity, error=str(e))
+
+    def _fallback_article(self, commodity: str, error: str = "") -> list[NewsArticle]:
+        """Return a single error article when data fetch fails."""
+        return [NewsArticle(
+            id=f"error_{commodity}_{datetime.now().strftime('%Y%m%d_%H%M')}",
+            title=f"Unable to fetch data for {commodity}",
+            source="Yahoo Finance",
+            date=datetime.now().strftime("%Y-%m-%d"),
+            content=f"Error fetching data: {error}" if error else "No data available.",
+            sentiment="neutral",
+            sentiment_score=0.0,
+            commodity=commodity,
+        )]
 
     def get_multi_symbol_updates(
         self, symbols: list[str]

@@ -37,6 +37,7 @@ uv.lock
 Thumbs.db
 
 # Project specific
+.claude/
 CLAUDE.md
 config/.env
 .env

@@ -60,3 +60,72 @@ async def get_supported_commodities():
     from src.data.config import config
 
     return {"symbols": list(config.commodity_symbols.keys())}
+
+
+@router.get(
+    "/macro-events",
+    summary="Get macro events for world map",
+    description="Returns geo-located market events for all tracked commodities",
+)
+async def get_macro_events(service: PriceService = Depends(get_price_service)):
+    """
+    Fetch latest price changes for all commodities and return them as
+    geo-located events compatible with WorldMapWidget.load_events().
+
+    Event format: {title, lat, lon, severity, category, country, summary}
+    """
+    import asyncio
+    from src.data.config import config
+
+    # Country coordinates for main commodity producers/consumers
+    _GEO: dict[str, tuple[float, float, str]] = {
+        "GOLD":        (-25.3, 131.0, "Australia"),
+        "SILVER":      (23.6, -102.5, "Mexico"),
+        "OIL":         (24.7,  46.7,  "Saudi Arabia"),
+        "NATURAL_GAS": (55.7,  37.6,  "Russia"),
+        "WHEAT":       (50.4,  30.5,  "Ukraine"),
+        "COPPER":      (-23.7, -68.0, "Chile"),
+    }
+    _CATEGORY: dict[str, str] = {
+        "GOLD": "metals", "SILVER": "metals", "COPPER": "metals",
+        "OIL": "energy", "NATURAL_GAS": "energy",
+        "WHEAT": "agriculture",
+    }
+
+    loop = asyncio.get_event_loop()
+    events: list[dict] = []
+
+    async def _fetch_one(commodity: str) -> dict | None:
+        try:
+            resp = await loop.run_in_executor(
+                None, service._base_service.get_latest_price, commodity
+            )
+            change = resp.get("change_24h", 0.0)
+            price  = resp.get("current_price", 0.0)
+
+            if abs(change) >= 2.0:
+                severity = "high"
+            elif abs(change) >= 0.5:
+                severity = "medium"
+            else:
+                severity = "low"
+
+            direction = "up" if change >= 0 else "down"
+            lat, lon, country = _GEO.get(commodity, (0.0, 0.0, commodity))
+            return {
+                "title":    f"{commodity} {direction} {abs(change):.2f}% — ${price:,.2f}",
+                "lat":      lat,
+                "lon":      lon,
+                "severity": severity,
+                "category": _CATEGORY.get(commodity, "market"),
+                "country":  country,
+                "summary":  f"24h change: {change:+.2f}% | Price: ${price:,.2f}",
+            }
+        except Exception:
+            return None
+
+    tasks = [_fetch_one(c) for c in _GEO]
+    results = await asyncio.gather(*tasks)
+    events = [r for r in results if r is not None]
+
+    return {"events": events, "count": len(events)}
