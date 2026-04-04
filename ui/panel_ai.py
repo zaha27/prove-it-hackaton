@@ -1,6 +1,5 @@
 """
 ui/panel_ai.py — AI insight panel, clean Perplexity style, no emoji.
-# TODO: Dev1 — add streaming token display when using real Anthropic API
 """
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout
 from PyQt6.QtCore import Qt, QTimer

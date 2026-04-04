@@ -195,7 +195,7 @@ def get_macro_events() -> list[dict]:
 def get_ai_insight(symbol: str, price_data: dict | None, news: list[dict]) -> str:
     """
     Request an AI insight from the backend MCP endpoint.
-    Falls back to direct Anthropic call if backend unavailable or fails.
+    Falls back to Ollama (local) if backend unavailable or fails.
 
     Backend shape returned: {commodity, insight: {summary, key_factors, price_outlook,
                              recommendation, sentiment, confidence, model}, ...}

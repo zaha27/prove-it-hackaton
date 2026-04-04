@@ -13,8 +13,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Legacy keys (kept for backward compat with data/ai_engine.py fallback path)
-ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 NEWS_API_KEY: str      = os.getenv("NEWS_API_KEY", "")
 GDELT_ENABLED: bool    = os.getenv("GDELT_ENABLED", "false").lower() == "true"
 

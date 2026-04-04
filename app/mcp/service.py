@@ -136,7 +136,7 @@ class MCPService:
             )
             mcp_context = await self.get_context(context_request)
 
-        # Generate insight — try DeepSeek first, fall back to Anthropic
+        # Generate insight — try DeepSeek first, fall back to Ollama
         import asyncio
 
         loop = asyncio.get_event_loop()
@@ -148,7 +148,7 @@ class MCPService:
                     request.commodity, use_cache=True
                 )
             except (ValueError, Exception) as exc:
-                # DeepSeek key missing or call failed → use Anthropic fallback
+                # DeepSeek key missing or call failed → use Ollama fallback
                 return self._ollama_fallback(request, str(exc))
 
         insight: AIInsight = await loop.run_in_executor(None, _generate)
