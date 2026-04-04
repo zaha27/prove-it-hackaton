@@ -285,14 +285,36 @@ class AppBridge(QObject):
         if news:
             self._window.update_news(news)
 
-        # Handle consensus result (new format) or fallback insight string
+        # Handle consensus result (new format) or fallback
         if consensus_result:
-            if consensus_result.get("fallback"):
-                # Old format - just a text insight
-                self._window.update_insight(consensus_result.get("final_recommendation", ""))
-            else:
-                # New consensus format with debate history
+            # Dacă are cheia 'xgboost_input' sau 'debate_history', e payload complet
+            if "xgboost_input" in consensus_result or "debate_history" in consensus_result:
+                logger.info(f"Bridge: Using Full Consensus format for {symbol}")
                 self._window.update_consensus(consensus_result)
+            
+            # Dacă are 'fallback' (vechiul mod) DAR vrem să-l forțăm în UI-ul nou ca string
+            elif consensus_result.get("fallback"):
+                logger.warning(f"Bridge: Consensus failed, rendering fallback text as consensus for {symbol}")
+                
+                # Transformăm string-ul de fallback într-un dict minim ca să meargă în UI-ul HTML
+                fallback_text = consensus_result.get("final_recommendation", str(consensus_result))
+                
+                dummy_consensus = {
+                    "commodity": symbol,
+                    "consensus_reached": False,
+                    "rounds_conducted": 0,
+                    "final_recommendation": "ERROR/FALLBACK",
+                    "confidence": 0.0,
+                    "final_reasoning": fallback_text, # Punem textul vechi aici
+                    "xgboost_input": {
+                         "top_features": [] # Fără bare dacă avem eroare
+                    }
+                }
+                self._window.update_consensus(dummy_consensus)
+            else:
+                 # Payload necunoscut, îl trimitem la update_consensus să afișeze eroarea de parsing roșie
+                 logger.warning(f"Bridge: Unknown consensus format for {symbol}")
+                 self._window.update_consensus(consensus_result)
 
         self._window.set_loading(False)
         self._window.update_status(symbol, last_price)

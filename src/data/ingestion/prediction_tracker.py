@@ -5,6 +5,7 @@ reinforcement learning from past successes and failures.
 """
 
 import hashlib
+import uuid
 import json
 from datetime import datetime, timedelta
 from typing import Any
@@ -40,17 +41,10 @@ class PredictionTracker:
     def _generate_prediction_id(
         self, commodity: str, timestamp: datetime
     ) -> str:
-        """Generate unique ID for a prediction.
-
-        Args:
-            commodity: Commodity symbol
-            timestamp: Prediction timestamp
-
-        Returns:
-            Unique prediction ID
-        """
+        """Generate unique ID for a prediction."""
         content = f"{commodity}:{timestamp.isoformat()}"
-        return hashlib.md5(content.encode()).hexdigest()[:16]
+        # CORECȚIE QDRANT UUID
+        return str(uuid.uuid5(uuid.NAMESPACE_OID, content))
 
     def _embed_reasoning(self, reasoning: str) -> list[float]:
         """Create embedding from reasoning text.

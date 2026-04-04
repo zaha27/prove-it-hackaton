@@ -1,6 +1,6 @@
 {
-  "risk_score": 5,
-  "investment_horizon": 1,
+  "risk_score": 1,
+  "investment_horizon": 5,
   "market_familiarity": 5,
-  "preferred_strategy": "Aggressive"
+  "preferred_strategy": "Conservative"
 }

@@ -1,6 +1,7 @@
 """Time series data ingestion for historical price patterns."""
 
 import hashlib
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -28,18 +29,10 @@ class TimeSeriesIngestor:
     def _generate_pattern_id(
         self, commodity: str, date: str, window_size: int
     ) -> str:
-        """Generate unique ID for a price pattern.
-
-        Args:
-            commodity: Commodity symbol
-            date: Pattern date
-            window_size: Lookback window size
-
-        Returns:
-            Unique pattern ID
-        """
+        """Generate unique ID for a price pattern."""
         content = f"{commodity}:{date}:{window_size}"
-        return hashlib.md5(content.encode()).hexdigest()[:16]
+        # CORECȚIE QDRANT UUID
+        return str(uuid.uuid5(uuid.NAMESPACE_OID, content))
 
     def _create_pattern_embedding(
         self, prices: list[float], volumes: list[int]

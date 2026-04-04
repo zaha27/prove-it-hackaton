@@ -1,6 +1,7 @@
 """Real-time data ingestion to Qdrant for live market data."""
 
 import hashlib
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -100,7 +101,7 @@ class RealtimeIngestor:
         # Generate unique ID
         timestamp = datetime.utcnow()
         content = f"{commodity}:live:{timestamp.isoformat()}"
-        pattern_id = hashlib.md5(content.encode()).hexdigest()[:16]
+        pattern_id = str(uuid.uuid5(uuid.NAMESPACE_OID, content))
 
         # Determine volatility regime
         if volatility > 2:
