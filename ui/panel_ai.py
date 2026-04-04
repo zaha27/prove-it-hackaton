@@ -27,6 +27,10 @@ class PanelAI(QWidget):
         layout.addWidget(self._build_header())
         layout.addWidget(self._build_tag_bar())
         layout.addWidget(self._build_text_area(), stretch=1)
+        self._recommendation_label = QLabel("")
+        self._recommendation_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self._recommendation_label)
+        self.set_recommendation("HOLD")
 
     def _build_header(self) -> QWidget:
         bar = QWidget()
@@ -129,6 +133,22 @@ class PanelAI(QWidget):
         """Called by Backend/Bridge with the LLM response (plain text or markdown)."""
         self.set_text(insight_text)
 
+    def set_recommendation(self, decision: str):
+        normalized = (decision or "").strip().upper()
+        self._recommendation_label.setText(
+            f"<b>AI suggests from your investment profile to:</b> {normalized}"
+        )
+
+        base_style = "font-size: 14px; padding: 10px; border-top: 1px solid #333;"
+        if normalized == "BUY":
+            color = "#00E676"
+        elif normalized == "SELL":
+            color = "#FF1744"
+        else:
+            color = "#FFEA00"
+
+        self._recommendation_label.setStyleSheet(f"color: {color}; {base_style}")
+
     def update_consensus(self, consensus_result: dict) -> None:
         """Display XGBoost + DeepSeek neuro-symbolic analysis result.
 
@@ -159,6 +179,7 @@ class PanelAI(QWidget):
 
         # Final recommendation
         recommendation = consensus_result.get("final_recommendation", "HOLD")
+        self.set_recommendation(recommendation)
         confidence = consensus_result.get("confidence", 0.5)
         direction = consensus_result.get("direction", "hold")
         risk_level = consensus_result.get("risk_level", "medium")
