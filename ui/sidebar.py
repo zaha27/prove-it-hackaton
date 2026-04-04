@@ -30,7 +30,6 @@ class Sidebar(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        layout.addWidget(self._build_logo())
         layout.addWidget(self._build_section_label("Markets"))
         layout.addWidget(self._build_list(), stretch=1)
         layout.addWidget(self._build_bottom())

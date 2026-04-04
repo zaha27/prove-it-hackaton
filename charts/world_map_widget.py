@@ -14,6 +14,7 @@ Usage (in main.py, after window is created):
 """
 import logging
 
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
@@ -38,6 +39,9 @@ class WorldMapWidget(QWidget):
         }
     """
 
+    load_started = pyqtSignal()
+    load_finished = pyqtSignal(bool)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._events: list[dict] = []
@@ -48,6 +52,8 @@ class WorldMapWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self._view = QWebEngineView()
+        self._view.loadStarted.connect(self.load_started.emit)
+        self._view.loadFinished.connect(self.load_finished.emit)
         self._view.setHtml(PLACEHOLDER_HTML)
         layout.addWidget(self._view)
 
