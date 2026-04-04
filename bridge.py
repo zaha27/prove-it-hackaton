@@ -49,6 +49,16 @@ class _FetchWorker(QThread):
         """Check if worker has been cancelled."""
         return self._cancelled
 
+    @staticmethod
+    def _is_consensus_invalid(consensus_result: dict | None) -> bool:
+        """Return True if consensus payload is missing or represents a failed run."""
+        if not consensus_result:
+            return True
+        return (
+            not consensus_result.get("consensus_reached", False)
+            and consensus_result.get("rounds_conducted", 0) == 0
+        )
+
     def run(self) -> None:
         try:
             from data import backend_client
@@ -64,6 +74,15 @@ class _FetchWorker(QThread):
                     # Use new consensus endpoint if enabled
                     if self.use_consensus:
                         consensus_result = backend_client.get_consensus(self.symbol)
+                        # Fallback to fast insight if consensus is unavailable/errored
+                        if self._is_consensus_invalid(consensus_result):
+                            insight_text = backend_client.get_ai_insight(
+                                self.symbol, price_data, news
+                            )
+                            consensus_result = {
+                                "final_recommendation": insight_text,
+                                "fallback": True,
+                            }
                     else:
                         consensus_result = None
                 else:
