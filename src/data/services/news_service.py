@@ -4,11 +4,101 @@ NO NewsAPI - uses Yahoo Finance ticker data and gemini-grounding for context.
 """
 
 from datetime import datetime, timedelta
+import re
 from typing import Any
+from urllib.parse import urlparse
 
+import requests
 from src.data.clients.yfinance_client import YFinanceClient
 from src.data.config import config
 from src.data.models.news import NewsArticle
+
+_GDELT_BASE_URL = "https://api.gdeltproject.org/api/v2/context/context"
+_GDELT_QUERY = "(economy OR conflict OR energy) domainis:reuters.com"
+_GDELT_MAX_RESULTS = 50
+_GDELT_TIMEOUT_S = 12
+_COUNTRY_KEYWORDS_ISO3 = {
+    "iran": "IRN",
+    "ukraine": "UKR",
+    "usa": "USA",
+    "china": "CHN",
+}
+
+
+def _extract_source(article: dict[str, Any]) -> str:
+    source = article.get("source") or article.get("domain")
+    if source:
+        return str(source)
+    url = str(article.get("url", ""))
+    host = urlparse(url).netloc.lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host or "Unknown"
+
+
+def _normalize_timestamp(article: dict[str, Any]) -> str:
+    raw = (
+        article.get("seendate")
+        or article.get("date")
+        or article.get("published")
+        or article.get("timestamp")
+        or ""
+    )
+    raw_s = str(raw).strip()
+    if not raw_s:
+        return ""
+    if len(raw_s) == 14 and raw_s.isdigit():
+        dt = datetime.strptime(raw_s, "%Y%m%d%H%M%S")
+        return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    if " " in raw_s and "T" not in raw_s:
+        return raw_s.replace(" ", "T") + "Z"
+    return raw_s
+
+
+def _infer_country_iso3(title: str) -> str | None:
+    lowered = (title or "").lower()
+    for keyword, iso3 in _COUNTRY_KEYWORDS_ISO3.items():
+        if re.search(rf"\b{re.escape(keyword)}\b", lowered):
+            return iso3
+    return None
+
+
+def fetch_real_world_news(limit: int = 50) -> list[dict[str, Any]]:
+    """Fetch real-world macro news from GDELT contextual search."""
+    safe_limit = max(1, min(int(limit), _GDELT_MAX_RESULTS))
+    try:
+        resp = requests.get(
+            _GDELT_BASE_URL,
+            params={
+                "query": _GDELT_QUERY,
+                "mode": "artlist",
+                "maxresults": safe_limit,
+                "format": "json",
+            },
+            timeout=_GDELT_TIMEOUT_S,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        articles = payload.get("articles", []) if isinstance(payload, dict) else []
+    except Exception:
+        return []
+
+    result: list[dict[str, Any]] = []
+    for article in articles[:safe_limit]:
+        title = str(article.get("title") or "").strip()
+        item = {
+            "title": title,
+            "source": _extract_source(article),
+            "timestamp": _normalize_timestamp(article),
+            "url": str(article.get("url") or "").strip(),
+            "summary": "",
+            "sentiment": "neutral",
+        }
+        country_iso3 = _infer_country_iso3(title)
+        if country_iso3:
+            item["country_iso3"] = country_iso3
+        result.append(item)
+    return result
 
 
 class NewsService:
