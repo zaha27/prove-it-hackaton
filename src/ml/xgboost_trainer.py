@@ -1,5 +1,6 @@
 """XGBoost training pipeline for commodity price prediction."""
 
+import logging
 import pickle
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from src.data.vector_schema import PRICE_PATTERNS_COLLECTION
 # Increase Qdrant timeout for large data loads
 QDRANT_TIMEOUT = 60  # 1 minute per request
 MAX_RETRIES = 3  # Retry failed requests
+logger = logging.getLogger(__name__)
 
 
 class XGBoostTrainer:
@@ -227,7 +229,7 @@ class XGBoostTrainer:
     ) -> dict[str, xgb.XGBRegressor]:
         """Train models for all configured commodity symbols."""
         trained_models: dict[str, xgb.XGBRegressor] = {}
-        for symbol in SYMBOLS.keys():
+        for symbol in SYMBOLS:
             trained_models[symbol] = self.train_model(
                 symbol, target_horizon=target_horizon, force_retrain=force_retrain
             )
@@ -260,6 +262,7 @@ class XGBoostTrainer:
         try:
             model = self.load_model(commodity)
         except FileNotFoundError:
+            logger.warning("Model missing for %s; training a new model on demand", commodity)
             model = self.train_model(commodity)
 
         # Convert features to array in correct order
