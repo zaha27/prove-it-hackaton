@@ -15,6 +15,7 @@ Usage (in main.py, after window is created):
 import logging
 
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 
@@ -53,6 +54,8 @@ class WorldMapWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self._view = QWebEngineView()
+        self._view.page().setBackgroundColor(QColor("#080808"))
+        self._view.setStyleSheet("background: #080808; border: none;")
         self._view.loadStarted.connect(self._on_load_started)
         self._view.loadFinished.connect(self._on_load_finished)
         self._view.setHtml(PLACEHOLDER_HTML)
