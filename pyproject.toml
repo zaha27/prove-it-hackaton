@@ -7,6 +7,7 @@ requires-python = "==3.12.*"
 dependencies = [
     # UI
     "PyQt6>=6.6.0",
+    "PyQt6-sip>=13.6.0",
     "PyQt6-WebEngine>=6.6.0",
     "pyqtdarktheme>=2.1.0",
     "plotly>=5.18.0",
