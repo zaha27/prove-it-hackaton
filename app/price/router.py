@@ -69,7 +69,7 @@ async def get_supported_commodities():
     summary="Get macro events for world map",
     description="Returns geo-located market events for all tracked commodities",
 )
-async def get_macro_events():
+def get_macro_events():
     """
     Fetch latest price changes for all commodities and return them as
     geo-located events compatible with WorldMapWidget.load_events().
@@ -114,8 +114,8 @@ async def get_macro_events():
         {"title": "Chile central bank keeps policy rate unchanged", "lat": -33.4, "lon": -70.7, "severity": "low", "category": "market", "country_iso3": "CHL", "country": "Chile", "summary": "Steady policy guidance limits near-term volatility in local rates and FX."},
         {"title": "South Africa power outages hit platinum group metal output", "lat": -26.2, "lon": 28.0, "severity": "high", "category": "metals", "country_iso3": "ZAF", "country": "South Africa", "summary": "Energy constraints are curbing mine throughput and tightening PGM supply."},
         {"title": "South Africa rail congestion delays coal exports", "lat": -29.8, "lon": 31.0, "severity": "medium", "category": "energy", "country_iso3": "ZAF", "country": "South Africa", "summary": "Export bottlenecks are supporting seaborne thermal coal differentials."},
-        {"title": "Congo copper-cobalt shipment permits face temporary delays", "lat": -11.7, "lon": 27.5, "severity": "high", "category": "metals", "country_iso3": "COD", "country": "Congo", "summary": "Documentation delays are tightening prompt availability for battery materials."},
-        {"title": "Congo mine output report shows stable monthly production", "lat": -6.3, "lon": 23.6, "severity": "low", "category": "metals", "country_iso3": "COD", "country": "Congo", "summary": "Steady output data offsets part of the logistics risk premium."},
+        {"title": "Congo copper-cobalt shipment permits face temporary delays", "lat": -11.7, "lon": 27.5, "severity": "high", "category": "metals", "country_iso3": "COD", "country": "Democratic Republic of the Congo", "summary": "Documentation delays are tightening prompt availability for battery materials."},
+        {"title": "Congo mine output report shows stable monthly production", "lat": -6.3, "lon": 23.6, "severity": "low", "category": "metals", "country_iso3": "COD", "country": "Democratic Republic of the Congo", "summary": "Steady output data offsets part of the logistics risk premium."},
         {"title": "Ghana cocoa arrivals trend below seasonal average", "lat": 5.6, "lon": -0.2, "severity": "medium", "category": "agriculture", "country_iso3": "GHA", "country": "Ghana", "summary": "Lower arrivals are reinforcing tight global cocoa bean availability."},
         {"title": "Ghana cedi stabilizes after central bank liquidity operation", "lat": 6.7, "lon": -1.6, "severity": "low", "category": "market", "country_iso3": "GHA", "country": "Ghana", "summary": "Improved FX liquidity reduces near-term import cost pressure on food markets."},
     ]
