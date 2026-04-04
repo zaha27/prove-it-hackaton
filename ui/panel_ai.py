@@ -65,7 +65,6 @@ class PanelAI(QWidget):
 
         for text, fg, bg in [
             ("Chain-of-Thought", "#93C5FD", "rgba(147,197,253,0.08)"),
-            ("claude-sonnet",    "#6B7280", "rgba(107,114,128,0.06)"),
         ]:
             tag = QLabel(text)
             tag.setStyleSheet(
