@@ -1,8 +1,9 @@
 """
-charts/chart_engine.py — Build Plotly candlestick charts and return HTML strings.
+charts/chart_engine.py — Build Lightweight Charts candlestick charts and return HTML strings.
 """
 import json
 import logging
+from datetime import datetime, date
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ _RED    = "#F87171"   # bearish
 
 def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
     """
-    Build a dark-themed Plotly candlestick + volume HTML string.
+    Build a dark-themed Lightweight Charts candlestick + volume HTML string.
 
     Args:
         ohlcv: dict with keys dates, open, high, low, close, volume, symbol, currency.
@@ -30,142 +31,111 @@ def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
         A self-contained HTML string that can be loaded into QWebEngineView.
     """
     try:
-        import plotly.graph_objects as go
-        from plotly.subplots import make_subplots
+        def _to_date_str(value) -> str:
+            if isinstance(value, datetime):
+                return value.date().isoformat()
+            if isinstance(value, date):
+                return value.isoformat()
+            text = str(value)
+            if len(text) >= 10:
+                return text[:10]
+            return text
 
         dates = ohlcv["dates"]
-        symbol = ohlcv.get("symbol", "")
-        currency = ohlcv.get("currency", "USD")
+        opens = ohlcv["open"]
+        highs = ohlcv["high"]
+        lows = ohlcv["low"]
+        closes = ohlcv["close"]
+        volumes = ohlcv["volume"]
 
-        fig = make_subplots(
-            rows=2,
-            cols=1,
-            shared_xaxes=True,
-            vertical_spacing=0.03,
-            row_heights=[0.7, 0.3],
-        )
-
-        # Candlestick
-        fig.add_trace(
-            go.Candlestick(
-                x=dates,
-                open=ohlcv["open"],
-                high=ohlcv["high"],
-                low=ohlcv["low"],
-                close=ohlcv["close"],
-                name=symbol,
-                increasing_line_color=_GREEN,
-                decreasing_line_color=_RED,
-                increasing_fillcolor=_GREEN,
-                decreasing_fillcolor=_RED,
-                hovertext=[
-                    f"O: {o}  H: {h}  L: {l}  C: {c}"
-                    for o, h, l, c in zip(
-                        ohlcv["open"], ohlcv["high"], ohlcv["low"], ohlcv["close"]
-                    )
-                ],
-            ),
-            row=1,
-            col=1,
-        )
-
-        # Volume bars
-        colors = [
-            _GREEN if c >= o else _RED
-            for o, c in zip(ohlcv["open"], ohlcv["close"])
+        price_data = [
+            {
+                "time": _to_date_str(t),
+                "open": o,
+                "high": h,
+                "low": l,
+                "close": c,
+            }
+            for t, o, h, l, c in zip(dates, opens, highs, lows, closes)
         ]
-        fig.add_trace(
-            go.Bar(
-                x=dates,
-                y=ohlcv["volume"],
-                name="Volume",
-                marker_color=colors,
-                opacity=0.7,
-            ),
-            row=2,
-            col=1,
-        )
 
-        # Optional indicators
-        if indicator == "bollinger":
-            _add_bollinger_traces(fig, ohlcv)
+        volume_data = [
+            {
+                "time": _to_date_str(t),
+                "value": v,
+                "color": _GREEN if c >= o else _RED,
+            }
+            for t, o, c, v in zip(dates, opens, closes, volumes)
+        ]
 
-        _axis = dict(
-            gridcolor=_GRID,
-            linecolor=_GRID,
-            tickfont=dict(color=_MUTED, size=11, family="SF Mono, Menlo, monospace"),
-            showgrid=True,
-            zeroline=False,
-        )
-        layout = dict(
-            paper_bgcolor=_BG,
-            plot_bgcolor=_PANEL,
-            font=dict(color=_TEXT, family="SF Mono, Menlo, monospace", size=12),
-            title=dict(
-                text=f"<b>{symbol}</b>  <span style='color:{_MUTED};font-size:12px'>{currency}</span>",
-                font=dict(color=_ACCENT, size=15, family="SF Mono, Menlo, monospace"),
-                x=0.01,
-                xanchor="left",
-            ),
-            xaxis=dict(rangeslider=dict(visible=False), **_axis),
-            xaxis2=_axis.copy(),
-            yaxis=_axis.copy(),
-            yaxis2=_axis.copy(),
-            legend=dict(
-                bgcolor="rgba(0,0,0,0)",
-                bordercolor=_GRID,
-                font=dict(color=_MUTED, size=11),
-            ),
-            margin=dict(l=55, r=20, t=48, b=36),
-            hovermode="x unified",
-            hoverlabel=dict(
-                bgcolor="#111827",
-                bordercolor=_GRID,
-                font=dict(color=_TEXT, size=12, family="SF Mono, Menlo, monospace"),
-            ),
-        )
-        fig.update_layout(**layout)
+        price_json = json.dumps(price_data, ensure_ascii=False)
+        volume_json = json.dumps(volume_data, ensure_ascii=False)
 
-        return fig.to_html(
-            full_html=True,
-            include_plotlyjs="cdn",
-            config={"displayModeBar": False},
-        )
+        return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <style>
+    html, body, #container {{
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      margin: 0;
+      background: {_PANEL};
+      overflow: hidden;
+    }}
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <script>
+    const chart = LightweightCharts.createChart(document.getElementById('container'), {{
+      layout: {{
+        background: {{ color: '#0D0D0D' }},
+        textColor: '#F1F5F9',
+      }},
+      grid: {{
+        vertLines: {{ color: '#1C1C1C' }},
+        horzLines: {{ color: '#1C1C1C' }},
+      }},
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }});
+
+    const candlestickSeries = chart.addCandlestickSeries({{
+      upColor: '#4ADE80',
+      downColor: '#F87171',
+      wickUpColor: '#4ADE80',
+      wickDownColor: '#F87171',
+      borderVisible: false
+    }});
+    candlestickSeries.setData({price_json});
+
+    const volumeSeries = chart.addHistogramSeries({{
+      priceScaleId: '',
+      priceFormat: {{ type: 'volume' }},
+      scaleMargins: {{ top: 0.8, bottom: 0 }}
+    }});
+    volumeSeries.setData({volume_json});
+
+    chart.timeScale().fitContent();
+
+    window.addEventListener('resize', () => {{
+      chart.applyOptions({{
+        width: window.innerWidth,
+        height: window.innerHeight
+      }});
+    }});
+  </script>
+</body>
+</html>"""
 
     except Exception as exc:
         logger.error("chart_engine error: %s", exc)
         return _error_html(str(exc))
-
-
-def _add_bollinger_traces(fig, ohlcv: dict) -> None:
-    """Add Bollinger Band traces to an existing figure."""
-    try:
-        import pandas as pd
-        from charts.indicators import add_bollinger
-
-        df = pd.DataFrame({"close": ohlcv["close"]}, index=ohlcv["dates"])
-        df = add_bollinger(df)
-
-        import plotly.graph_objects as go
-
-        for col, color, name in [
-            ("bb_upper", _PURPLE, "BB Upper"),
-            ("bb_mid",   _ACCENT, "BB Mid"),
-            ("bb_lower", _PURPLE, "BB Lower"),
-        ]:
-            fig.add_trace(
-                go.Scatter(
-                    x=ohlcv["dates"],
-                    y=df[col].tolist(),
-                    name=name,
-                    line=dict(color=color, width=1, dash="dot"),
-                    opacity=0.7,
-                ),
-                row=1,
-                col=1,
-            )
-    except Exception as exc:
-        logger.warning("Failed to add Bollinger bands: %s", exc)
 
 
 def _error_html(message: str) -> str:
