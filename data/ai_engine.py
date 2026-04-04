@@ -33,6 +33,7 @@ def get_ai_insight(
     symbol: str,
     xgboost_prediction: Optional[dict],
     news_list: list[dict],
+    user_profile: Optional[dict] = None,
 ) -> str:
     """
     Generate a neuro-symbolic insight using DeepSeek as Risk Manager.
@@ -43,8 +44,9 @@ def get_ai_insight(
         xgboost_prediction: Dict with keys: prediction (float), confidence (float),
                             reasoning (str), top_features (list). Pass {} if unavailable.
         news_list: List of news dicts with 'title', 'sentiment' keys.
+        user_profile: Optional investor profile dict from user.json.
     """
-    prompt = _build_prompt(symbol, xgboost_prediction or {}, news_list)
+    prompt = _build_prompt(symbol, xgboost_prediction or {}, news_list, user_profile or {})
 
     deepseek_key = os.getenv("DEEPSEEK_API_KEY", "")
     if not deepseek_key:
@@ -74,7 +76,9 @@ def get_ai_insight(
         return f"⚠️ AI analysis unavailable: {exc}"
 
 
-def _build_prompt(symbol: str, xgboost_prediction: dict, news_list: list[dict]) -> str:
+def _build_prompt(symbol: str, xgboost_prediction: dict, news_list: list[dict], user_profile: dict) -> str:
+    symbol_name = _SYMBOLS.get(symbol, symbol)
+
     # XGBoost signal
     prediction = float(xgboost_prediction.get("prediction", 0))
     confidence = float(xgboost_prediction.get("confidence", 0))
@@ -97,9 +101,16 @@ def _build_prompt(symbol: str, xgboost_prediction: dict, news_list: list[dict]) 
     else:
         news_summary = "  No news available."
 
+    # User profile context
+    if user_profile:
+        from data.user_manager import UserManager
+        profile_context = f"\n## User Risk Profile\n{UserManager.get_deepseek_context(user_profile)}\n"
+    else:
+        profile_context = ""
+
     return _PROMPT_TEMPLATE.format(
         risk_profile=risk_profile,
         xgboost_pred_pct=xgb_prediction_str,
         xgb_confidence=xgb_confidence_str,
         news_summary=news_summary,
-    )
+    ) + profile_context
