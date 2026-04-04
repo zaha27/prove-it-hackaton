@@ -423,9 +423,11 @@ class MainWindow(QMainWindow):
                 lambda: self._map_overlay.show_loading("Loading map...")
             )
             widget.load_finished.connect(
-                lambda _ok: self._map_overlay.hide_loading()
+                lambda ok: self._map_overlay.hide_loading()
             )
-            self._map_overlay.show_loading("Loading map...")
+            is_loading = getattr(widget, "is_loading", None)
+            if callable(is_loading) and is_loading():
+                self._map_overlay.show_loading("Loading map...")
 
     def set_chart_widget(self, widget: QWidget) -> None:
         """Injecteaza PanelChart (candlestick + toolbar) in Tab 1."""

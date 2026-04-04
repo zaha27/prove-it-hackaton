@@ -45,6 +45,7 @@ class WorldMapWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._events: list[dict] = []
+        self._is_loading = False
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -52,8 +53,8 @@ class WorldMapWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self._view = QWebEngineView()
-        self._view.loadStarted.connect(self.load_started.emit)
-        self._view.loadFinished.connect(self.load_finished.emit)
+        self._view.loadStarted.connect(self._on_load_started)
+        self._view.loadFinished.connect(self._on_load_finished)
         self._view.setHtml(PLACEHOLDER_HTML)
         layout.addWidget(self._view)
 
@@ -74,3 +75,14 @@ class WorldMapWidget(QWidget):
     def refresh(self) -> None:
         """Re-render with the last loaded events."""
         self.load_events(self._events)
+
+    def is_loading(self) -> bool:
+        return self._is_loading
+
+    def _on_load_started(self) -> None:
+        self._is_loading = True
+        self.load_started.emit()
+
+    def _on_load_finished(self, ok: bool) -> None:
+        self._is_loading = False
+        self.load_finished.emit(ok)
