@@ -219,3 +219,94 @@ def get_ai_insight(symbol: str) -> str:
         f"**Mock AI Insight — {symbol}**\n\nNo specific mock insight available for this symbol. "
         "In production mode, the LLM will generate a real analysis based on current price data and news.",
     )
+
+
+def get_macro_events() -> list[dict]:
+    """
+    Return geo-located macro events for the World Macro View map.
+
+    Contract matches world-monitor NewsItem/Hotspot structure:
+        title, lat, lon, severity ("high"|"medium"|"low"), category, country, summary
+    """
+    return [
+        {
+            "title": "OPEC+ Emergency Meeting — Output Decision Pending",
+            "lat": 24.7, "lon": 46.7,
+            "severity": "high",
+            "category": "energy",
+            "country": "Saudi Arabia",
+            "summary": "Alliance considering additional 500k bpd cut amid demand slowdown concerns.",
+        },
+        {
+            "title": "Russia Reduces Gas Exports via Nord Stream Corridor",
+            "lat": 55.7, "lon": 37.6,
+            "severity": "high",
+            "category": "energy",
+            "country": "Russia",
+            "summary": "Flow volumes down 35% week-on-week; European storage drawdown accelerating.",
+        },
+        {
+            "title": "Ukraine Grain Corridor Extension Agreed for 60 Days",
+            "lat": 50.4, "lon": 30.5,
+            "severity": "medium",
+            "category": "agriculture",
+            "country": "Ukraine",
+            "summary": "UN-brokered deal allows continued Black Sea wheat and corn exports.",
+        },
+        {
+            "title": "Chile Copper Miners Strike — Escondida Output Halted",
+            "lat": -23.7, "lon": -68.0,
+            "severity": "high",
+            "category": "metals",
+            "country": "Chile",
+            "summary": "Workers at world's largest copper mine vote to extend strike into third week.",
+        },
+        {
+            "title": "Fed Chair Speech: Rate Path Remains Data-Dependent",
+            "lat": 38.9, "lon": -77.0,
+            "severity": "medium",
+            "category": "market",
+            "country": "USA",
+            "summary": "Powell reiterates restrictive stance; markets pricing in 60% chance of pause.",
+        },
+        {
+            "title": "China Stimulus Package — Infrastructure Spending Approved",
+            "lat": 39.9, "lon": 116.4,
+            "severity": "medium",
+            "category": "market",
+            "country": "China",
+            "summary": "CNY 1.5T infrastructure bond issuance supports copper and steel demand outlook.",
+        },
+        {
+            "title": "Iran Oil Sanctions Tightening — EU Announcement Expected",
+            "lat": 35.7, "lon": 51.4,
+            "severity": "high",
+            "category": "energy",
+            "country": "Iran",
+            "summary": "Additional sanctions could remove 800k bpd from global supply.",
+        },
+        {
+            "title": "Australian Gold Output Hits 5-Year High",
+            "lat": -25.3, "lon": 131.0,
+            "severity": "low",
+            "category": "metals",
+            "country": "Australia",
+            "summary": "Q1 production up 12% YoY; lower production costs support miner margins.",
+        },
+        {
+            "title": "ECB Rate Decision: 25bp Hike Delivered",
+            "lat": 50.1, "lon": 8.7,
+            "severity": "medium",
+            "category": "market",
+            "country": "Germany",
+            "summary": "Eurozone inflation remains above target; further hikes dependent on Q2 CPI print.",
+        },
+        {
+            "title": "West Africa Drought — Wheat Crop Estimate Revised Down",
+            "lat": 12.4, "lon": -1.5,
+            "severity": "medium",
+            "category": "agriculture",
+            "country": "Burkina Faso",
+            "summary": "USDA cuts regional wheat output by 8%; local food security concerns rise.",
+        },
+    ]

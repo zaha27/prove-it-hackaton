@@ -6,13 +6,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Bloomberg-inspired dark theme colours
-_BG = "#0D1117"
-_GRID = "#1C2128"
-_TEXT = "#CDD9E5"
-_ACCENT = "#FFD700"
-_GREEN = "#26a69a"
-_RED = "#ef5350"
+# Perplexity palette — near-black + baby blue (matches ui/styles/theme.py)
+_BG     = "#080808"   # deepest bg
+_PANEL  = "#0D0D0D"   # panel bg
+_GRID   = "#1C1C1C"   # subtle grid
+_TEXT   = "#F1F5F9"   # primary text
+_MUTED  = "#6B7280"   # secondary text
+_ACCENT = "#93C5FD"   # baby blue
+_DIM    = "#374151"   # very muted
+_GREEN  = "#4ADE80"   # bullish
+_RED    = "#F87171"   # bearish
 
 
 def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
@@ -87,30 +90,39 @@ def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
         if indicator == "bollinger":
             _add_bollinger_traces(fig, ohlcv)
 
+        _axis = dict(
+            gridcolor=_GRID,
+            linecolor=_GRID,
+            tickfont=dict(color=_MUTED, size=11, family="SF Mono, Menlo, monospace"),
+            showgrid=True,
+            zeroline=False,
+        )
         layout = dict(
             paper_bgcolor=_BG,
-            plot_bgcolor=_BG,
-            font=dict(color=_TEXT, family="Consolas, Courier New, monospace", size=12),
+            plot_bgcolor=_PANEL,
+            font=dict(color=_TEXT, family="SF Mono, Menlo, monospace", size=12),
             title=dict(
-                text=f"{symbol} — {currency}",
-                font=dict(color=_ACCENT, size=16),
+                text=f"<b>{symbol}</b>  <span style='color:{_MUTED};font-size:12px'>{currency}</span>",
+                font=dict(color=_ACCENT, size=15, family="SF Mono, Menlo, monospace"),
+                x=0.01,
+                xanchor="left",
             ),
-            xaxis=dict(
-                rangeslider=dict(visible=False),
-                gridcolor=_GRID,
-                linecolor=_GRID,
-                showgrid=True,
-            ),
-            xaxis2=dict(gridcolor=_GRID, linecolor=_GRID),
-            yaxis=dict(gridcolor=_GRID, linecolor=_GRID, showgrid=True),
-            yaxis2=dict(gridcolor=_GRID, linecolor=_GRID, showgrid=True),
+            xaxis=dict(rangeslider=dict(visible=False), **_axis),
+            xaxis2=_axis.copy(),
+            yaxis=_axis.copy(),
+            yaxis2=_axis.copy(),
             legend=dict(
                 bgcolor="rgba(0,0,0,0)",
                 bordercolor=_GRID,
-                font=dict(color=_TEXT),
+                font=dict(color=_MUTED, size=11),
             ),
-            margin=dict(l=50, r=20, t=50, b=40),
+            margin=dict(l=55, r=20, t=48, b=36),
             hovermode="x unified",
+            hoverlabel=dict(
+                bgcolor="#111827",
+                bordercolor=_GRID,
+                font=dict(color=_TEXT, size=12, family="SF Mono, Menlo, monospace"),
+            ),
         )
         fig.update_layout(**layout)
 
@@ -137,9 +149,9 @@ def _add_bollinger_traces(fig, ohlcv: dict) -> None:
         import plotly.graph_objects as go
 
         for col, color, name in [
-            ("bb_upper", "#7986CB", "BB Upper"),
-            ("bb_mid", _ACCENT, "BB Mid"),
-            ("bb_lower", "#7986CB", "BB Lower"),
+            ("bb_upper", _PURPLE, "BB Upper"),
+            ("bb_mid",   _ACCENT, "BB Mid"),
+            ("bb_lower", _PURPLE, "BB Lower"),
         ]:
             fig.add_trace(
                 go.Scatter(
@@ -157,22 +169,31 @@ def _add_bollinger_traces(fig, ohlcv: dict) -> None:
 
 
 def _error_html(message: str) -> str:
-    return f"""
-    <html><body style="background:#0D1117;color:#ef5350;font-family:monospace;padding:40px;">
-    <h2>Chart Error</h2><pre>{message}</pre>
-    </body></html>
-    """
-
-
-PLACEHOLDER_HTML = f"""
+    return f"""<!DOCTYPE html>
 <html>
-<body style="background:{_BG};display:flex;align-items:center;justify-content:center;
-             height:100vh;margin:0;">
-  <div style="text-align:center;font-family:Consolas,monospace;color:{_TEXT};">
-    <div style="font-size:48px;color:{_ACCENT};">◈</div>
-    <div style="font-size:18px;margin-top:16px;">Select a commodity</div>
-    <div style="font-size:13px;color:#555;margin-top:8px;">from the sidebar to load chart data</div>
+<body style="background:{_BG};color:{_RED};
+             font-family:'SF Mono',Menlo,monospace;padding:40px;margin:0;">
+  <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Chart Error</div>
+  <pre style="color:{_MUTED};font-size:12px;line-height:1.6;">{message}</pre>
+</body></html>"""
+
+
+PLACEHOLDER_HTML = f"""<!DOCTYPE html>
+<html>
+<body style="background:{_BG};margin:0;height:100vh;
+             display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+    <div style="width:40px;height:40px;background:#111111;border:1px solid #1C1C1C;
+                border-radius:8px;margin:0 auto 20px;display:flex;
+                align-items:center;justify-content:center;">
+      <span style="color:{_ACCENT};font-size:18px;font-weight:700;
+                   font-family:'SF Mono',Menlo,monospace;">C</span>
+    </div>
+    <div style="font-size:14px;font-weight:500;color:{_TEXT};letter-spacing:0.3px;">
+      Select a commodity
+    </div>
+    <div style="font-size:12px;color:{_MUTED};margin-top:6px;">
+      Choose from the sidebar to load chart data
+    </div>
   </div>
-</body>
-</html>
-"""
+</body></html>"""

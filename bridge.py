@@ -118,4 +118,4 @@ class AppBridge(QObject):
     def _on_error(self, message: str) -> None:
         logger.error("Fetch failed: %s", message)
         self._window.set_loading(False)
-        self._window.update_insight(f"⚠️ Data fetch failed:\n\n{message}")
+        self._window.update_insight(f"Data fetch failed:\n\n{message}")

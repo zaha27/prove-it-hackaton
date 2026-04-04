@@ -42,33 +42,63 @@ class PanelChart(QWidget):
 
     def _build_toolbar(self) -> QWidget:
         bar = QWidget()
-        bar.setFixedHeight(38)
-        bar.setStyleSheet("background:#161b22;border-bottom:1px solid #30363d;")
+        bar.setFixedHeight(42)
+        bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
         hbox = QHBoxLayout(bar)
-        hbox.setContentsMargins(8, 4, 8, 4)
+        hbox.setContentsMargins(18, 0, 18, 0)
+        hbox.setSpacing(4)
 
-        hbox.addWidget(QLabel("Timeframe:"))
+        lbl = QLabel("Timeframe")
+        lbl.setStyleSheet(
+            "color:#374151; font-size:11px; font-weight:500;"
+            "letter-spacing:0.3px; margin-right:4px;"
+        )
+        hbox.addWidget(lbl)
+
+        _TF_BTN = (
+            "QPushButton {"
+            "  background:#111111; color:#6B7280;"
+            "  border:1px solid #1C1C1C; border-radius:5px;"
+            "  padding:2px 10px; font-size:12px; font-weight:500; min-width:34px;"
+            "}"
+            "QPushButton:hover { background:#1C1C1C; color:#D1D5DB; border-color:#262626; }"
+            "QPushButton:checked {"
+            "  background:#1E3A5F; border-color:#93C5FD;"
+            "  color:#93C5FD; font-weight:600;"
+            "}"
+        )
         self._tf_buttons: dict[str, QPushButton] = {}
         for tf in _TIMEFRAMES:
             btn = QPushButton(tf)
-            btn.setFixedWidth(40)
             btn.setCheckable(True)
             btn.setChecked(tf == self._active_tf)
+            btn.setStyleSheet(_TF_BTN)
             btn.clicked.connect(lambda checked, t=tf: self._on_timeframe(t))
-            btn.setStyleSheet(
-                "QPushButton{background:#21262d;color:#cdd9e5;border:1px solid #30363d;"
-                "border-radius:3px;padding:2px 4px;}"
-                "QPushButton:checked{background:#FFD700;color:#000;}"
-            )
             hbox.addWidget(btn)
             self._tf_buttons[tf] = btn
 
-        hbox.addSpacing(20)
-        hbox.addWidget(QLabel("Indicator:"))
+        hbox.addSpacing(16)
+
+        lbl2 = QLabel("Indicator")
+        lbl2.setStyleSheet(
+            "color:#374151; font-size:11px; font-weight:500;"
+            "letter-spacing:0.3px; margin-right:4px;"
+        )
+        hbox.addWidget(lbl2)
+
         self._indicator_combo = QComboBox()
         self._indicator_combo.addItems(_INDICATORS)
         self._indicator_combo.currentTextChanged.connect(self._on_indicator_change)
         self._indicator_combo.setFixedWidth(140)
+        self._indicator_combo.setStyleSheet(
+            "QComboBox { background:#111111; color:#6B7280;"
+            "  border:1px solid #1C1C1C; border-radius:5px;"
+            "  padding:3px 10px; font-size:12px; }"
+            "QComboBox:hover { border-color:#262626; color:#D1D5DB; }"
+            "QComboBox QAbstractItemView {"
+            "  background:#111111; color:#D1D5DB;"
+            "  border:1px solid #1C1C1C; selection-background-color:#1E3A5F; }"
+        )
         hbox.addWidget(self._indicator_combo)
         hbox.addStretch()
         return bar

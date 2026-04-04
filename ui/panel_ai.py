@@ -1,5 +1,5 @@
 """
-ui/panel_ai.py — AI insight panel with loading animation.
+ui/panel_ai.py — AI insight panel, clean Perplexity style, no emoji.
 # TODO: Dev1 — add streaming token display when using real Anthropic API
 """
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout
@@ -9,15 +9,13 @@ from PyQt6.QtGui import QFont
 
 class PanelAI(QWidget):
     """
-    Panel that displays the LLM Chain-of-Thought analysis.
-
-    Usage:
-        panel.set_loading(True)   # show "Analyzing..." animation
-        panel.set_text(insight)   # display the result
+    LLM Chain-of-Thought analysis panel.
+    Call set_loading(True) before fetch, update_insight(text) when done.
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setStyleSheet("background:#0D0D0D;")
         self._dot_count = 0
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._tick_loading)
@@ -27,27 +25,60 @@ class PanelAI(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        layout.addWidget(self._build_header())
+        layout.addWidget(self._build_tag_bar())
+        layout.addWidget(self._build_text_area(), stretch=1)
 
-        # Header bar
-        header_bar = QWidget()
-        header_bar.setFixedHeight(32)
-        header_bar.setStyleSheet(
-            "background:#161b22;border-bottom:1px solid #30363d;"
-        )
-        hbox = QHBoxLayout(header_bar)
-        hbox.setContentsMargins(8, 0, 8, 0)
-        title = QLabel("⚡ AI INSIGHT")
+    def _build_header(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(40)
+        bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(18, 0, 18, 0)
+
+        title = QLabel("AI Insight")
         title.setStyleSheet(
-            "color:#FFD700;font-size:11px;font-weight:bold;letter-spacing:2px;"
+            "color:#9CA3AF; font-size:12px; font-weight:500; letter-spacing:0.3px;"
         )
-        hbox.addWidget(title)
-        hbox.addStretch()
-        self._loading_label = QLabel("")
-        self._loading_label.setStyleSheet("color:#8b949e;font-size:12px;")
-        hbox.addWidget(self._loading_label)
-        layout.addWidget(header_bar)
+        row.addWidget(title)
+        row.addStretch()
 
-        # Text area
+        self._status_label = QLabel("")
+        self._status_label.setStyleSheet("color:#374151; font-size:11px;")
+        row.addWidget(self._status_label)
+
+        # Tiny status indicator square (replaces pulsing dot)
+        self._indicator = QLabel("")
+        self._indicator.setFixedSize(6, 6)
+        self._indicator.setStyleSheet(
+            "background:#1C1C1C; border-radius:3px; margin-left:6px;"
+        )
+        row.addWidget(self._indicator)
+        return bar
+
+    def _build_tag_bar(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(30)
+        bar.setStyleSheet("background:#0D0D0D; border-bottom:1px solid #111111;")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(18, 0, 18, 0)
+        row.setSpacing(6)
+
+        for text, fg, bg in [
+            ("Chain-of-Thought", "#93C5FD", "rgba(147,197,253,0.08)"),
+            ("claude-sonnet",    "#6B7280", "rgba(107,114,128,0.06)"),
+        ]:
+            tag = QLabel(text)
+            tag.setStyleSheet(
+                f"color:{fg}; background:{bg}; border-radius:4px;"
+                "font-size:10px; font-weight:500; padding:1px 8px;"
+            )
+            row.addWidget(tag)
+
+        row.addStretch()
+        return bar
+
+    def _build_text_area(self) -> QTextEdit:
         self._text_edit = QTextEdit()
         self._text_edit.setReadOnly(True)
         self._text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -55,36 +86,52 @@ class PanelAI(QWidget):
         font.setStyleHint(QFont.StyleHint.Monospace)
         self._text_edit.setFont(font)
         self._text_edit.setStyleSheet(
-            "QTextEdit{background:#0d1117;color:#cdd9e5;border:none;padding:12px;}"
+            "QTextEdit {"
+            "  background:#0D0D0D;"
+            "  color:#E5E7EB;"
+            "  border:none;"
+            "  padding:20px 22px;"
+            "  selection-background-color:#1E3A5F;"
+            "}"
         )
-        layout.addWidget(self._text_edit, stretch=1)
+        return self._text_edit
+
+    # Public contract ──────────────────────────────────────────────────────────
 
     def update_insight(self, insight_text: str) -> None:
-        """
-        Public contract method — called by Backend/Bridge with the LLM response.
-
-        Args:
-            insight_text: plain text or markdown string from the AI engine.
-        """
+        """Called by Backend/Bridge with the LLM response (plain text or markdown)."""
         self.set_text(insight_text)
 
     def set_text(self, text: str) -> None:
-        """Display the AI analysis text. Stops any loading animation."""
         self._timer.stop()
-        self._loading_label.setText("")
+        self._status_label.setText("")
+        self._indicator.setStyleSheet(
+            "background:#4ADE80; border-radius:3px; margin-left:6px;"
+        )
         self._text_edit.setMarkdown(text)
 
     def set_loading(self, loading: bool) -> None:
-        """Show or hide the 'Analyzing...' animation."""
         if loading:
-            self._text_edit.setPlaceholderText("Waiting for AI analysis...")
             self._text_edit.clear()
             self._dot_count = 0
+            self._indicator.setStyleSheet(
+                "background:#93C5FD; border-radius:3px; margin-left:6px;"
+            )
             self._timer.start(400)
         else:
             self._timer.stop()
-            self._loading_label.setText("")
+            self._status_label.setText("")
+            self._indicator.setStyleSheet(
+                "background:#1C1C1C; border-radius:3px; margin-left:6px;"
+            )
 
     def _tick_loading(self) -> None:
         self._dot_count = (self._dot_count + 1) % 4
-        self._loading_label.setText("Analyzing" + "." * self._dot_count)
+        suffix = "." * self._dot_count
+        self._status_label.setText(f"Analyzing{suffix}")
+        # Pulse: bright -> dim -> bright
+        bright = self._dot_count % 2 == 0
+        color = "#93C5FD" if bright else "#1E3A5F"
+        self._indicator.setStyleSheet(
+            f"background:{color}; border-radius:3px; margin-left:6px;"
+        )

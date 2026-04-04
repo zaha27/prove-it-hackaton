@@ -37,12 +37,20 @@ def main() -> int:
     from ui.main_window import MainWindow
     window = MainWindow()
 
-    # Build chart panel
+    # Tab 1 — Trading Desk: candlestick chart
     from charts.panel_chart import PanelChart
     panel_chart = PanelChart()
     window.set_chart_widget(panel_chart)
 
-    # Wire everything together
+    # Tab 0 — World Macro View: geo map (mock events in --mock, empty base otherwise)
+    from charts.world_map_widget import WorldMapWidget
+    from data.mock_data import get_macro_events
+    macro_map = WorldMapWidget()
+    window.set_map_widget(macro_map)
+    if use_mock:
+        macro_map.load_events(get_macro_events())
+
+    # Wire Trading Desk signals → data layer
     from bridge import AppBridge
     bridge = AppBridge(window, panel_chart, use_mock=use_mock)
 
