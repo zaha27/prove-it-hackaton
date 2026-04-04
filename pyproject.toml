@@ -1,6 +1,36 @@
 [project]
 name = "ai-commodity-analyzer"
 version = "0.1.0"
+description = "AI Commodity Price Intelligence Platform"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "yfinance>=0.2.50",
+    "newsapi-python>=0.2.7",
+    "sentence-transformers>=3.0.0",
+    "qdrant-client>=1.12.0",
+    "openai>=1.0.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "vader-sentiment>=3.2.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "requests>=2.31.0",
+    "xgboost>=2.0.0",
+    "scikit-learn>=1.3.0",
+    "ta>=0.11.0",
+]
+
+[tool.uv]
+environments = ["sys_platform != 'win32'"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.6.0",
+    "mypy>=1.8.0",
+]
 description = "AI-powered commodity market analyzer with PyQt6 and LLM insights"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+app/__pycache__/
 *.py[cod]
 *$py.class
 *.so
@@ -36,6 +37,10 @@ uv.lock
 Thumbs.db
 
 # Project specific
+CLAUDE.md
+config/.env
 .env
 config/*.env
 config/secrets.yaml
+!config/.env.example
+.gitnexus
