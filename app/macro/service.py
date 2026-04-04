@@ -1,6 +1,7 @@
 """Macro service module."""
 
 from typing import List
+from datetime import datetime, timezone
 
 from app.macro.models import MacroNewsItem
 from data.macro_insight_text import WORLD_MACRO_INSIGHT_TEXT
@@ -20,7 +21,10 @@ class MacroService:
             MacroNewsItem(
                 title=item.get("title", ""),
                 source=item.get("source", ""),
-                timestamp=item.get("timestamp", "1970-01-01T00:00:00Z"),
+                timestamp=item.get(
+                    "timestamp",
+                    datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                ),
                 sentiment=item.get("sentiment", "neutral"),
                 summary=item.get("summary", ""),
             )

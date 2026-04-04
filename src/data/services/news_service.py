@@ -66,19 +66,22 @@ def _infer_country_iso3(title: str) -> str | None:
 def fetch_real_world_news(limit: int = 50) -> list[dict[str, Any]]:
     """Fetch real-world macro news from GDELT contextual search."""
     safe_limit = max(1, min(int(limit), _GDELT_MAX_RESULTS))
-    resp = requests.get(
-        _GDELT_BASE_URL,
-        params={
-            "query": _GDELT_QUERY,
-            "mode": "artlist",
-            "maxresults": safe_limit,
-            "format": "json",
-        },
-        timeout=_GDELT_TIMEOUT_S,
-    )
-    resp.raise_for_status()
-    payload = resp.json()
-    articles = payload.get("articles", []) if isinstance(payload, dict) else []
+    try:
+        resp = requests.get(
+            _GDELT_BASE_URL,
+            params={
+                "query": _GDELT_QUERY,
+                "mode": "artlist",
+                "maxresults": safe_limit,
+                "format": "json",
+            },
+            timeout=_GDELT_TIMEOUT_S,
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+        articles = payload.get("articles", []) if isinstance(payload, dict) else []
+    except Exception:
+        return []
 
     result: list[dict[str, Any]] = []
     for article in articles[:safe_limit]:
