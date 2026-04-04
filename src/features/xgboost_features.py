@@ -14,11 +14,14 @@ class XGBoostFeatureEngineer:
         """Initialize feature engineer."""
         self.feature_names: list[str] = []
 
-    def engineer_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Engineer comprehensive features from OHLCV data.
+    def engineer_features(
+        self, df: pd.DataFrame, news_sentiment: dict | None = None
+    ) -> pd.DataFrame:
+        """Engineer comprehensive features from OHLCV data and news sentiment.
 
         Args:
             df: DataFrame with OHLCV columns
+            news_sentiment: Optional dict with news sentiment analysis
 
         Returns:
             DataFrame with engineered features
@@ -45,6 +48,10 @@ class XGBoostFeatureEngineer:
 
         # Pattern features
         df = self._add_pattern_features(df)
+
+        # News sentiment features (if provided)
+        if news_sentiment:
+            df = self._add_sentiment_features(df, news_sentiment)
 
         # Store feature names
         self.feature_names = [
@@ -310,6 +317,52 @@ class XGBoostFeatureEngineer:
             low_min = df["Low"].rolling(period).min()
             df[f"breakout_up_{period}"] = (df["Close"] > high_max.shift(1)).astype(int)
             df[f"breakout_down_{period}"] = (df["Close"] < low_min.shift(1)).astype(int)
+
+        return df
+
+    def _add_sentiment_features(
+        self, df: pd.DataFrame, sentiment: dict
+    ) -> pd.DataFrame:
+        """Add news sentiment features.
+
+        Args:
+            df: DataFrame with price data
+            sentiment: Dict with sentiment analysis results
+
+        Returns:
+            DataFrame with sentiment features added
+        """
+        # Overall sentiment score (-1 to 1)
+        df["news_sentiment_score"] = sentiment.get("average_score", 0)
+
+        # Sentiment category encoding
+        overall = sentiment.get("overall_sentiment", "neutral")
+        df["news_sentiment_positive"] = 1 if overall == "positive" else 0
+        df["news_sentiment_negative"] = 1 if overall == "negative" else 0
+        df["news_sentiment_neutral"] = 1 if overall == "neutral" else 0
+
+        # Article counts
+        total = sentiment.get("total", 0)
+        df["news_article_count"] = total
+        df["news_positive_ratio"] = (
+            sentiment.get("positive_count", 0) / total if total > 0 else 0
+        )
+        df["news_negative_ratio"] = (
+            sentiment.get("negative_count", 0) / total if total > 0 else 0
+        )
+
+        # Sentiment momentum (if we have historical data)
+        df["news_sentiment_volume"] = total  # Articles as proxy for attention
+
+        # Sentiment-price divergence
+        df["sentiment_price_divergence"] = (
+            df["news_sentiment_score"] - df["return_1d"].fillna(0) / 100
+        )
+
+        # High sentiment volatility (extreme scores)
+        df["news_sentiment_extreme"] = (
+            abs(df["news_sentiment_score"]) > 0.5
+        ).astype(int)
 
         return df
 

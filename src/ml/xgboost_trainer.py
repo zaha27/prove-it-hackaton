@@ -327,6 +327,39 @@ class XGBoostTrainer:
         """
         return list(self.models.keys())
 
+    def predict_with_explanation(
+        self, commodity: str, features: dict[str, float]
+    ) -> dict[str, Any]:
+        """Get prediction with full explanation.
+
+        Args:
+            commodity: Commodity symbol
+            features: Feature dictionary
+
+        Returns:
+            Dictionary with prediction, confidence, and explanation
+        """
+        # Get prediction
+        prediction = self.predict(commodity, features)
+
+        # Get confidence metrics
+        confidence_metrics = self.calculate_confidence(commodity, features)
+
+        # Get explanation
+        explanation = self.explain_prediction(commodity, features, top_n=5)
+
+        return {
+            "commodity": commodity,
+            "prediction": prediction,
+            "prediction_pct": prediction * 100,
+            "confidence": confidence_metrics["confidence"],
+            "confidence_metrics": confidence_metrics,
+            "top_features": explanation["top_features"],
+            "reasoning": explanation["reasoning"],
+            "positive_factors": explanation["positive_factors"],
+            "negative_factors": explanation["negative_factors"],
+        }
+
     def explain_prediction(
         self, commodity: str, features: dict[str, float], top_n: int = 3
     ) -> dict[str, Any]:

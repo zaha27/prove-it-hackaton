@@ -101,6 +101,118 @@ class PanelAI(QWidget):
         """Called by Backend/Bridge with the LLM response (plain text or markdown)."""
         self.set_text(insight_text)
 
+    def update_consensus(self, consensus_result: dict) -> None:
+        """Display DeepSeek-Gemma4 consensus result with debate history.
+
+        Args:
+            consensus_result: Dict with debate rounds and final recommendation
+        """
+        lines = []
+
+        # Header with source attribution
+        commodity = consensus_result.get("commodity", "Unknown")
+        consensus_reached = consensus_result.get("consensus_reached", False)
+        rounds = consensus_result.get("rounds_conducted", 0)
+
+        lines.append(f"# AI Consensus Analysis — {commodity}")
+        lines.append("")
+
+        # Source attribution badge
+        lines.append("> **Powered by:** Gemma4 (Ollama) + DeepSeek + Gemini MCP + XGBoost")
+        lines.append("")
+
+        # Consensus status
+        if consensus_reached:
+            lines.append("✓ **Consensus Reached**")
+        else:
+            lines.append("⚠ **No Consensus** (max rounds reached)")
+        lines.append(f"*Debate rounds: {rounds}*")
+        lines.append("")
+
+        # Final recommendation
+        recommendation = consensus_result.get("final_recommendation", "HOLD")
+        confidence = consensus_result.get("confidence", 0.5)
+        direction = consensus_result.get("direction", "hold")
+        risk_level = consensus_result.get("risk_level", "medium")
+
+        lines.append(f"## Final Recommendation: **{recommendation}**")
+        lines.append(f"- **Confidence:** {confidence:.0%}")
+        lines.append(f"- **Direction:** {direction.upper()}")
+        lines.append(f"- **Risk Level:** {risk_level.upper()}")
+        lines.append("")
+
+        # Final reasoning
+        final_reasoning = consensus_result.get("final_reasoning", "")
+        if final_reasoning:
+            lines.append("### Reasoning")
+            lines.append(final_reasoning)
+            lines.append("")
+
+        # XGBoost input summary
+        xgboost = consensus_result.get("xgboost_input", {})
+        if xgboost:
+            prediction = xgboost.get("prediction_pct", 0)
+            xgb_confidence = xgboost.get("confidence", 0)
+            lines.append("### XGBoost Technical Analysis")
+            lines.append(f"- Prediction: {prediction:+.2f}%")
+            lines.append(f"- Confidence: {xgb_confidence:.0%}")
+            lines.append("")
+
+        # Yahoo news summary
+        news_summary = consensus_result.get("yahoo_news_summary", "")
+        if news_summary:
+            lines.append("### News Sentiment")
+            lines.append(news_summary[:500])  # Truncate if too long
+            lines.append("")
+
+        # Debate history (collapsible sections)
+        debate_history = consensus_result.get("debate_history", [])
+        if debate_history:
+            lines.append("---")
+            lines.append("## Debate History")
+            lines.append("")
+
+            for i, round_data in enumerate(debate_history, 1):
+                lines.append(f"### Round {i}")
+
+                # Gemma4 position
+                gemma4_pos = round_data.get("gemma4_position", {})
+                gemma4_dir = gemma4_pos.get("direction", "unknown")
+                gemma4_conf = gemma4_pos.get("confidence", 0)
+
+                lines.append(f"**Gemma4:** {gemma4_dir.upper()} ({gemma4_conf}% confidence)")
+
+                # Gemma4 argument
+                gemma4_arg = round_data.get("gemma4_argument", "")
+                if gemma4_arg:
+                    lines.append(f"> {gemma4_arg[:200]}...")
+
+                # Sources
+                sources = round_data.get("gemma4_sources", [])
+                if sources:
+                    lines.append(f"*Sources: {', '.join(sources[:3])}*")
+
+                lines.append("")
+
+                # DeepSeek position
+                deepseek_pos = round_data.get("deepseek_position", {})
+                deepseek_dir = deepseek_pos.get("direction", "unknown")
+                deepseek_conf = deepseek_pos.get("confidence", 0)
+
+                lines.append(f"**DeepSeek:** {deepseek_dir.upper()} ({deepseek_conf}% confidence)")
+
+                # DeepSeek critique
+                critique = round_data.get("deepseek_critique", "")
+                if critique:
+                    lines.append(f"> {critique[:200]}...")
+
+                # Agreement score
+                agreement = round_data.get("agreement_score", 0)
+                lines.append(f"*Agreement: {agreement:.0%}*")
+                lines.append("")
+
+        self.set_text("\n".join(lines))
+
     def set_text(self, text: str) -> None:
         self._timer.stop()
         self._status_label.setText("")
@@ -134,3 +246,67 @@ class PanelAI(QWidget):
         self._indicator.setStyleSheet(
             f"background:{color}; border-radius:3px; margin-left:6px;"
         )
+
+    def show_loading_animation(self, symbol: str) -> None:
+        """Show a cool animated loading state for multi-agent consensus.
+
+        Args:
+            symbol: The commodity symbol being analyzed
+        """
+        self._timer.stop()
+        self._text_edit.clear()
+
+        # Build animated HTML content
+        html = f"""
+        <div style="padding: 40px 20px; text-align: center; color: #E5E7EB;">
+            <h2 style="color: #93C5FD; margin-bottom: 30px;">Analyzing {symbol}</h2>
+
+            <div style="margin: 30px 0;">
+                <div style="display: inline-block; animation: pulse 1.5s infinite;">
+                    <span style="font-size: 48px;">🤖</span>
+                </div>
+                <div style="display: inline-block; margin: 0 20px; animation: bounce 1s infinite;">
+                    <span style="font-size: 32px; color: #6B7280;">⟷</span>
+                </div>
+                <div style="display: inline-block; animation: pulse 1.5s infinite 0.5s;">
+                    <span style="font-size: 48px;">🧠</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px; font-family: Menlo, monospace; font-size: 13px;">
+                <p style="color: #6B7280; margin: 8px 0;">
+                    <span style="color: #4ADE80;">●</span> Gemma4 (Ollama) — Searching web & reasoning...
+                </p>
+                <p style="color: #6B7280; margin: 8px 0;">
+                    <span style="color: #93C5FD;">●</span> DeepSeek — Critiquing & validating...
+                </p>
+                <p style="color: #6B7280; margin: 8px 0;">
+                    <span style="color: #F59E0B;">●</span> XGBoost — Technical analysis...
+                </p>
+            </div>
+
+            <div style="margin-top: 40px; color: #374151; font-size: 12px;">
+                Multi-Agent Consensus Pipeline<br/>
+                <span style="color: #6B7280;">Debate loop until agreement reached</span>
+            </div>
+        </div>
+
+        <style>
+            @keyframes pulse {{
+                0%, 100% {{ opacity: 1; transform: scale(1); }}
+                50% {{ opacity: 0.5; transform: scale(0.95); }}
+            }}
+            @keyframes bounce {{
+                0%, 100% {{ transform: translateX(0); }}
+                50% {{ transform: translateX(10px); }}
+            }}
+        </style>
+        """
+        self._text_edit.setHtml(html)
+
+        # Start pulsing indicator
+        self._indicator.setStyleSheet(
+            "background:#93C5FD; border-radius:3px; margin-left:6px;"
+        )
+        self._dot_count = 0
+        self._timer.start(400)

@@ -7,6 +7,97 @@ from pydantic import BaseModel, Field
 from src.data.models.insight import AIInsight
 
 
+class DebateRound(BaseModel):
+    """Single round of debate between Gemma4 and DeepSeek."""
+
+    round_number: int = Field(..., description="Debate round number")
+    gemma4_argument: str = Field(..., description="Gemma4's argument")
+    gemma4_sources: List[str] = Field(
+        default_factory=list, description="Web sources from Gemini MCP"
+    )
+    gemma4_position: Dict[str, Any] = Field(
+        default_factory=dict, description="Gemma4's position details"
+    )
+    deepseek_critique: str = Field(..., description="DeepSeek's critique")
+    deepseek_counter: str = Field(..., description="DeepSeek's counter-argument")
+    deepseek_position: Dict[str, Any] = Field(
+        default_factory=dict, description="DeepSeek's position details"
+    )
+    agreement_score: float = Field(
+        ..., description="Agreement score between agents (0-1)", ge=0.0, le=1.0
+    )
+
+
+class ConsensusResponse(BaseModel):
+    """Response from DeepSeek-Gemma4 consensus debate."""
+
+    commodity: str = Field(..., description="Commodity symbol")
+    consensus_reached: bool = Field(
+        ..., description="Whether consensus was achieved"
+    )
+    rounds_conducted: int = Field(
+        ..., description="Number of debate rounds", ge=0
+    )
+    final_recommendation: str = Field(
+        ..., description="Final trading recommendation"
+    )
+    confidence: float = Field(
+        ..., description="Confidence in recommendation (0-1)", ge=0.0, le=1.0
+    )
+    direction: str = Field(
+        ..., description="Trade direction: buy, sell, or hold"
+    )
+    risk_level: str = Field(
+        ..., description="Risk level: low, medium, or high"
+    )
+    debate_history: List[DebateRound] = Field(
+        default_factory=list, description="Full debate history"
+    )
+    xgboost_input: Dict[str, Any] = Field(
+        default_factory=dict, description="XGBoost prediction input"
+    )
+    yahoo_news_summary: str = Field(
+        ..., description="Summary of Yahoo Finance news"
+    )
+    final_reasoning: str = Field(
+        ..., description="Final reasoning summary"
+    )
+    gemma4_final_position: Dict[str, Any] = Field(
+        default_factory=dict, description="Gemma4's final position"
+    )
+    deepseek_final_position: Dict[str, Any] = Field(
+        default_factory=dict, description="DeepSeek's final position"
+    )
+    fetched_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when consensus was reached",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "commodity": "GOLD",
+                "consensus_reached": True,
+                "rounds_conducted": 3,
+                "final_recommendation": "BUY",
+                "confidence": 0.85,
+                "direction": "buy",
+                "risk_level": "medium",
+                "debate_history": [
+                    {
+                        "round_number": 1,
+                        "gemma4_argument": "Based on technical analysis...",
+                        "gemma4_sources": ["Reuters", "Bloomberg"],
+                        "deepseek_critique": "Consider the volatility...",
+                        "agreement_score": 0.6,
+                    }
+                ],
+                "final_reasoning": "Both agents agree on bullish outlook...",
+                "fetched_at": "2024-01-15T10:30:00Z",
+            }
+        }
+
+
 class MCPContextRequest(BaseModel):
     """MCP context request model."""
 
@@ -112,3 +203,106 @@ class MCPInsightResponse(BaseModel):
                 "fetched_at": "2024-01-15T10:30:00Z",
             }
         }
+
+
+class DebateRound(BaseModel):
+    """Single round of debate between Gemma4 and DeepSeek."""
+
+    round_number: int = Field(..., description="Debate round number")
+    gemma4_argument: str = Field(..., description="Gemma4's argument")
+    gemma4_sources: List[str] = Field(
+        default_factory=list, description="Web sources from Gemini MCP"
+    )
+    gemma4_position: Dict[str, Any] = Field(
+        default_factory=dict, description="Gemma4's position details"
+    )
+    deepseek_critique: str = Field(..., description="DeepSeek's critique")
+    deepseek_counter: str = Field(..., description="DeepSeek's counter-argument")
+    deepseek_position: Dict[str, Any] = Field(
+        default_factory=dict, description="DeepSeek's position details"
+    )
+    agreement_score: float = Field(
+        ..., description="Agreement score between agents (0-1)", ge=0.0, le=1.0
+    )
+
+
+class ConsensusResponse(BaseModel):
+    """Response from DeepSeek-Gemma4 consensus debate."""
+
+    commodity: str = Field(..., description="Commodity symbol")
+    consensus_reached: bool = Field(
+        ..., description="Whether consensus was achieved"
+    )
+    rounds_conducted: int = Field(
+        ..., description="Number of debate rounds", ge=0
+    )
+    final_recommendation: str = Field(
+        ..., description="Final trading recommendation"
+    )
+    confidence: float = Field(
+        ..., description="Confidence in recommendation (0-1)", ge=0.0, le=1.0
+    )
+    direction: str = Field(
+        ..., description="Trade direction: buy, sell, or hold"
+    )
+    risk_level: str = Field(
+        ..., description="Risk level: low, medium, or high"
+    )
+    debate_history: List[DebateRound] = Field(
+        default_factory=list, description="Full debate history"
+    )
+    xgboost_input: Dict[str, Any] = Field(
+        default_factory=dict, description="XGBoost prediction input"
+    )
+    yahoo_news_summary: str = Field(
+        ..., description="Summary of Yahoo Finance news"
+    )
+    final_reasoning: str = Field(
+        ..., description="Final reasoning summary"
+    )
+    gemma4_final_position: Dict[str, Any] = Field(
+        default_factory=dict, description="Gemma4's final position"
+    )
+    deepseek_final_position: Dict[str, Any] = Field(
+        default_factory=dict, description="DeepSeek's final position"
+    )
+    fetched_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="Timestamp when consensus was reached",
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "commodity": "GOLD",
+                "consensus_reached": True,
+                "rounds_conducted": 3,
+                "final_recommendation": "BUY",
+                "confidence": 0.85,
+                "direction": "buy",
+                "risk_level": "medium",
+                "debate_history": [
+                    {
+                        "round_number": 1,
+                        "gemma4_argument": "Based on technical analysis...",
+                        "gemma4_sources": ["Reuters", "Bloomberg"],
+                        "deepseek_critique": "Consider the volatility...",
+                        "agreement_score": 0.6,
+                    }
+                ],
+                "final_reasoning": "Both agents agree on bullish outlook...",
+                "fetched_at": "2024-01-15T10:30:00Z",
+            }
+        }
+
+
+class ConsensusRequest(BaseModel):
+    """Request for consensus analysis."""
+
+    commodity: str = Field(..., description="Commodity symbol")
+    max_rounds: int = Field(
+        5, description="Maximum debate rounds", ge=1, le=10
+    )
+    agreement_threshold: float = Field(
+        0.8, description="Agreement threshold for consensus", ge=0.0, le=1.0
+    )

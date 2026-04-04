@@ -1,83 +1,110 @@
 """
-data/news.py — News fetching via NewsAPI or GDELT fallback.
-# TODO: Dev3 — implement live news fetching
+data/news.py — News fetching via Yahoo Finance only.
 """
 import logging
-from typing import Optional
-
-import config
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 logger = logging.getLogger(__name__)
 
-# Map yfinance ticker → plain English search term for news APIs
-_SYMBOL_KEYWORDS = {
-    "GC=F": "gold commodity",
-    "SI=F": "silver commodity",
-    "CL=F": "crude oil WTI",
-    "NG=F": "natural gas commodity",
-    "ZW=F": "wheat commodity",
-    "HG=F": "copper commodity",
+# Sentiment analyzer
+_sentiment_analyzer = SentimentIntensityAnalyzer()
+
+# Map yfinance ticker → Yahoo Finance symbol
+_SYMBOL_MAP = {
+    "GC=F": "GC=F",
+    "SI=F": "SI=F",
+    "CL=F": "CL=F",
+    "NG=F": "NG=F",
+    "ZW=F": "ZW=F",
+    "HG=F": "HG=F",
 }
 
 
 def get_news(symbol: str, limit: int = 10) -> list[dict]:
     """
-    Fetch news articles for a commodity symbol.
+    Fetch news articles for a commodity symbol from Yahoo Finance.
 
-    Uses NewsAPI if NEWS_API_KEY is set, otherwise falls back to GDELT.
-    Each dict has keys: title, sentiment, source, timestamp, summary.
-
-    # TODO: Dev3 — implement sentiment scoring (positive/negative/neutral)
-    # TODO: Dev3 — add caching to avoid hitting rate limits
+    Each dict has keys: title, sentiment, source, timestamp, summary, sentiment_score.
     """
-    keyword = _SYMBOL_KEYWORDS.get(symbol, symbol)
+    import yfinance as yf
 
-    if config.NEWS_API_KEY:
-        return _fetch_newsapi(keyword, limit)
-    elif config.GDELT_ENABLED:
-        return _fetch_gdelt(keyword, limit)
-    else:
-        logger.warning("No news source configured for %s — returning empty list", symbol)
-        return []
+    yf_symbol = _SYMBOL_MAP.get(symbol, symbol)
 
-
-def _fetch_newsapi(keyword: str, limit: int) -> list[dict]:
-    """
-    Fetch from NewsAPI.org.
-    # TODO: Dev3 — implement this function
-    """
-    import requests
-
-    url = "https://newsapi.org/v2/everything"
-    params = {
-        "q": keyword,
-        "sortBy": "publishedAt",
-        "pageSize": limit,
-        "apiKey": config.NEWS_API_KEY,
-    }
     try:
-        resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        articles = resp.json().get("articles", [])
-        return [
-            {
-                "title": a.get("title", ""),
-                "sentiment": "neutral",  # TODO: Dev3 — add sentiment analysis
-                "source": a.get("source", {}).get("name", "Unknown"),
-                "timestamp": a.get("publishedAt", "")[:16].replace("T", " "),
-                "summary": a.get("description", ""),
-            }
-            for a in articles
-        ]
+        ticker = yf.Ticker(yf_symbol)
+        news = ticker.news or []
+
+        articles = []
+        for item in news[:limit]:
+            title = item.get("title", "")
+            summary = item.get("summary", "")
+            content = f"{title} {summary}"
+
+            # Analyze sentiment
+            sentiment_scores = _sentiment_analyzer.polarity_scores(content)
+            compound = sentiment_scores["compound"]
+
+            if compound >= 0.05:
+                sentiment = "positive"
+            elif compound <= -0.05:
+                sentiment = "negative"
+            else:
+                sentiment = "neutral"
+
+            articles.append({
+                "title": title,
+                "sentiment": sentiment,
+                "sentiment_score": compound,
+                "source": item.get("publisher", "Yahoo Finance"),
+                "timestamp": item.get("published", ""),
+                "summary": summary[:300] if summary else "",
+                "url": item.get("link", ""),
+            })
+
+        logger.info("Fetched %d news articles for %s from Yahoo Finance", len(articles), symbol)
+        return articles
+
     except Exception as exc:
-        logger.error("NewsAPI request failed: %s", exc)
+        logger.error("Failed to fetch Yahoo Finance news for %s: %s", symbol, exc)
         return []
 
 
-def _fetch_gdelt(keyword: str, limit: int) -> list[dict]:
+def analyze_news_sentiment(news_items: list[dict]) -> dict:
     """
-    Fetch from GDELT Project API (free, no key required).
-    # TODO: Dev3 — implement GDELT parsing
+    Analyze overall sentiment from a list of news items.
+
+    Returns:
+        dict with overall_sentiment, average_score, positive_count, negative_count, neutral_count
     """
-    logger.info("GDELT fetch not yet implemented, returning empty list")
-    return []
+    if not news_items:
+        return {
+            "overall_sentiment": "neutral",
+            "average_score": 0.0,
+            "positive_count": 0,
+            "negative_count": 0,
+            "neutral_count": 0,
+            "total": 0,
+        }
+
+    scores = [item.get("sentiment_score", 0) for item in news_items]
+    avg_score = sum(scores) / len(scores) if scores else 0
+
+    positive = sum(1 for s in scores if s >= 0.05)
+    negative = sum(1 for s in scores if s <= -0.05)
+    neutral = len(scores) - positive - negative
+
+    if avg_score >= 0.05:
+        overall = "positive"
+    elif avg_score <= -0.05:
+        overall = "negative"
+    else:
+        overall = "neutral"
+
+    return {
+        "overall_sentiment": overall,
+        "average_score": round(avg_score, 3),
+        "positive_count": positive,
+        "negative_count": negative,
+        "neutral_count": neutral,
+        "total": len(news_items),
+    }

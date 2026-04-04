@@ -23,9 +23,8 @@ dependencies = [
     # AI
     "anthropic>=0.34.0",
     "openai>=1.0.0",
-    # News & sentiment
-    "newsapi-python>=0.2.7",
-    "vader-sentiment>=3.2.0",
+    # Sentiment analysis
+    "vaderSentiment>=3.3.2",
     # Vector DB
     "sentence-transformers>=3.0.0",
     "qdrant-client>=1.12.0",

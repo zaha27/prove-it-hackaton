@@ -48,3 +48,16 @@ class PriceData(BaseModel):
         change = current - previous
         pct_change = (change / previous) * 100 if previous != 0 else 0.0
         return change, pct_change
+
+    def to_dataframe(self) -> "pd.DataFrame":
+        """Convert to pandas DataFrame."""
+        import pandas as pd
+
+        return pd.DataFrame({
+            "Date": self.dates,
+            "Open": self.open,
+            "High": self.high,
+            "Low": self.low,
+            "Close": self.close,
+            "Volume": self.volume,
+        })

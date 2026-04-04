@@ -13,9 +13,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-NEWS_API_KEY: str      = os.getenv("NEWS_API_KEY", "")
-GDELT_ENABLED: bool    = os.getenv("GDELT_ENABLED", "false").lower() == "true"
-
 # Primary LLM (DeepSeek via backend)
 DEEPSEEK_API_KEY: str  = os.getenv("DEEPSEEK_API_KEY", "")
 BACKEND_URL: str       = os.getenv("BACKEND_URL", "http://localhost:8000")

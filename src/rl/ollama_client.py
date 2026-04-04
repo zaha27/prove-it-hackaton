@@ -83,6 +83,56 @@ class OllamaClient:
         """
         return self._call_api(prompt, system=system)
 
+    def generate_with_grounding(
+        self,
+        prompt: str,
+        system: str | None = None,
+        search_query: str | None = None,
+        gemini_mcp=None,
+    ) -> dict[str, Any]:
+        """Generate text with Gemini MCP web search grounding.
+
+        Args:
+            prompt: User prompt
+            system: Optional system message
+            search_query: Query for web search (defaults to prompt summary)
+            gemini_mcp: Gemini grounding MCP tool
+
+        Returns:
+            Dict with 'response', 'sources', and 'grounding_used'
+        """
+        sources = []
+        grounding_context = ""
+
+        # Use Gemini MCP for web search if available
+        if gemini_mcp and search_query:
+            try:
+                search_result = gemini_mcp.search_with_grounding(query=search_query)
+                sources = search_result.get("sources", [])
+                grounding_context = search_result.get("grounding", "")
+            except Exception as e:
+                grounding_context = f"[Web search failed: {e}]"
+
+        # Enhance prompt with grounding context
+        enhanced_prompt = prompt
+        if grounding_context:
+            enhanced_prompt = f"""{prompt}
+
+## Web Search Results
+{grounding_context}
+
+Use the above web search results to inform your analysis."""
+
+        # Generate response
+        response = self._call_api(enhanced_prompt, system=system)
+
+        return {
+            "response": response,
+            "sources": sources,
+            "grounding_used": bool(grounding_context),
+            "original_prompt": prompt,
+        }
+
     def analyze_patterns(
         self, patterns: list[dict[str, Any]], question: str
     ) -> dict[str, Any]:

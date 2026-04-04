@@ -265,3 +265,27 @@ def get_ai_insight(symbol: str, price_data: dict | None, news: list[dict]) -> st
             symbol, exc,
         )
         return f"AI insight unavailable: backend returned an error ({exc}). Make sure the server is running."
+
+
+# ── Consensus (via /api/v1/mcp/consensus) ─────────────────────────────────────
+
+def get_consensus(symbol: str, max_rounds: int = 5) -> dict | None:
+    """
+    Request a DeepSeek-Gemma4 consensus from the backend.
+
+    Returns dict with debate history and final recommendation, or None on error.
+    """
+    commodity = _TICKER_TO_BACKEND.get(symbol, symbol)
+
+    try:
+        resp = requests.post(
+            f"{BACKEND_URL}/api/v1/mcp/consensus/{commodity}",
+            params={"max_rounds": max_rounds, "agreement_threshold": 0.8},
+            timeout=120,  # Longer timeout for debate loop
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    except Exception as exc:
+        logger.error("backend get_consensus failed for %s: %s", symbol, exc)
+        return None

@@ -122,6 +122,41 @@ Requirements:
                 model=self.model,
             )
 
+    def generate(
+        self,
+        prompt: str,
+        system: str = "You are a helpful assistant.",
+        temperature: float = 0.3,
+        max_tokens: int = 1000,
+    ) -> str:
+        """Generate text using DeepSeek API.
+
+        Args:
+            prompt: The user prompt
+            system: System message
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
+
+        Returns:
+            Generated text response
+        """
+        if not self.client:
+            raise ValueError("DeepSeek API key not configured")
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            return response.choices[0].message.content or ""
+        except Exception as e:
+            raise ValueError(f"DeepSeek generation failed: {e}") from e
+
     def generate_insight(
         self,
         commodity: str,

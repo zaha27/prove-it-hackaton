@@ -1,6 +1,6 @@
 """MCP API router."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Dict, Any
 
 from app.mcp.service import MCPService
@@ -9,6 +9,8 @@ from app.mcp.models import (
     MCPContextResponse,
     MCPInsightRequest,
     MCPInsightResponse,
+    ConsensusRequest,
+    ConsensusResponse,
 )
 from app.core.dependencies import get_mcp_service
 
@@ -77,5 +79,38 @@ async def get_mcp_status():
             "context_retrieval",
             "insight_enhancement",
             "grounded_information",
+            "consensus_debate",
         ],
     }
+
+
+@router.post(
+    "/consensus/{commodity}",
+    response_model=ConsensusResponse,
+    summary="Get consensus trading recommendation",
+    description="Run DeepSeek-Gemma4 debate loop to reach consensus on trading decision",
+)
+async def get_consensus_analysis(
+    commodity: str,
+    max_rounds: int = Query(5, description="Maximum debate rounds", ge=1, le=10),
+    agreement_threshold: float = Query(0.8, description="Agreement threshold", ge=0.0, le=1.0),
+    service: MCPService = Depends(get_mcp_service),
+):
+    """Get trading recommendation via DeepSeek-Gemma4 consensus debate.
+
+    This endpoint runs a multi-round debate between DeepSeek and Gemma4 (with
+    Gemini MCP web search) until they reach consensus on a trading decision.
+
+    Returns full debate history and final recommendation.
+    """
+    try:
+        request = ConsensusRequest(
+            commodity=commodity.upper(),
+            max_rounds=max_rounds,
+            agreement_threshold=agreement_threshold,
+        )
+        return await service.get_consensus(request)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

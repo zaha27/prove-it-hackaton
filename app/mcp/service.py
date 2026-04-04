@@ -13,6 +13,9 @@ from app.mcp.models import (
     MCPContextResponse,
     MCPInsightRequest,
     MCPInsightResponse,
+    ConsensusRequest,
+    ConsensusResponse,
+    DebateRound,
 )
 
 
@@ -203,3 +206,139 @@ class MCPService:
                 confidence=0.0,
                 model="none",
             )
+
+    async def search_with_grounding(self, query: str) -> dict:
+        """Proxy method for Gemini MCP web search grounding.
+
+        Args:
+            query: Search query string
+
+        Returns:
+            Dict with 'sources' and 'grounding' keys
+        """
+        if not self._use_real_gemini:
+            return {
+                "sources": [],
+                "grounding": "[Web search disabled - no Gemini API key]",
+            }
+
+        try:
+            # Import and use the gemini-grounding MCP tool
+            from CallMcpTool import CallMcpTool
+
+            result = CallMcpTool(
+                server_name="gemini-grounding",
+                tool_name="search_with_grounding",
+                arguments={"query": query},
+            )
+            return {
+                "sources": result.get("sources", []),
+                "grounding": result.get("grounding", ""),
+            }
+        except Exception as e:
+            # Fallback if MCP tool fails
+            return {
+                "sources": [],
+                "grounding": f"[Web search error: {e}]",
+            }
+
+    async def get_consensus(self, request: ConsensusRequest) -> ConsensusResponse:
+        """
+        Run DeepSeek-Gemma4 consensus debate for trading recommendation.
+
+        Args:
+            request: ConsensusRequest with commodity and parameters
+
+        Returns:
+            ConsensusResponse with debate history and final recommendation
+        """
+        import asyncio
+        from src.ml.consensus_engine import ConsensusEngine
+        from src.ml.xgboost_trainer import XGBoostTrainer
+        from src.features.xgboost_features import XGBoostFeatureEngineer
+        from src.data.clients.yfinance_client import YFinanceClient
+        from src.data.services.price_service import PriceService
+
+        commodity = request.commodity.upper()
+
+        # Fetch data
+        yf_client = YFinanceClient()
+        price_service = PriceService()
+
+        # Get Yahoo Finance news with sentiment
+        news = yf_client.fetch_news(commodity, limit=10)
+        news_sentiment = yf_client.analyze_news_sentiment(news)
+
+        # Get price data
+        price_data = price_service.get_latest_price(commodity)
+
+        # Get XGBoost prediction
+        xgb_trainer = XGBoostTrainer()
+        feature_engineer = XGBoostFeatureEngineer()
+
+        # Fetch OHLCV data for features
+        ohlcv = yf_client.fetch_ohlcv(commodity, period="60d")
+        df = ohlcv.to_dataframe()
+
+        # Engineer features with sentiment
+        df_features = feature_engineer.engineer_features(df, news_sentiment)
+
+        # Get current features for prediction
+        current_features = df_features.iloc[-1].to_dict()
+
+        # Train and predict
+        xgb_result = xgb_trainer.predict_with_explanation(commodity, current_features)
+
+        # Run consensus debate with Gemini MCP for web search
+        consensus_engine = ConsensusEngine(
+            max_rounds=request.max_rounds,
+            agreement_threshold=request.agreement_threshold,
+            gemini_mcp=self if self._use_real_gemini else None,
+        )
+
+        result = await consensus_engine.reach_consensus(
+            commodity=commodity,
+            xgboost_result=xgb_result,
+            price_data=price_data,
+            yahoo_news=[
+                {
+                    "title": n.title,
+                    "sentiment": n.sentiment,
+                    "sentiment_score": n.sentiment_score,
+                    "source": n.source,
+                }
+                for n in news
+            ],
+        )
+
+        # Convert to Pydantic model
+        debate_rounds = [
+            DebateRound(
+                round_number=r.round_number,
+                gemma4_argument=r.gemma4_argument,
+                gemma4_sources=r.gemma4_sources,
+                gemma4_position=r.gemma4_position,
+                deepseek_critique=r.deepseek_critique,
+                deepseek_counter=r.deepseek_counter,
+                deepseek_position=r.deepseek_position,
+                agreement_score=r.agreement_score,
+            )
+            for r in result.debate_history
+        ]
+
+        return ConsensusResponse(
+            commodity=result.commodity,
+            consensus_reached=result.consensus_reached,
+            rounds_conducted=result.rounds_conducted,
+            final_recommendation=result.final_recommendation,
+            confidence=result.confidence,
+            direction=result.direction,
+            risk_level=result.risk_level,
+            debate_history=debate_rounds,
+            xgboost_input=result.xgboost_input,
+            yahoo_news_summary=result.yahoo_news_summary,
+            final_reasoning=result.final_reasoning,
+            gemma4_final_position=result.gemma4_final_position,
+            deepseek_final_position=result.deepseek_final_position,
+            fetched_at=datetime.utcnow(),
+        )

@@ -445,6 +445,22 @@ class MainWindow(QMainWindow):
     def update_insight(self, text: str) -> None:
         self.panel_ai.update_insight(text)
 
+    def update_consensus(self, consensus_result: dict) -> None:
+        """Update AI panel with consensus debate result.
+
+        Args:
+            consensus_result: Dict with debate history and final recommendation
+        """
+        self.panel_ai.update_consensus(consensus_result)
+
+    def show_ai_loading(self, symbol: str) -> None:
+        """Show animated loading state in AI panel when fetching new commodity.
+
+        Args:
+            symbol: The commodity symbol being loaded
+        """
+        self.panel_ai.show_loading_animation(symbol)
+
     def set_fetching(self, symbol: str) -> None:
         """Loading ON — apelat imediat dupa commodity_changed."""
         self._current_symbol = symbol
