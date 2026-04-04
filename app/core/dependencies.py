@@ -11,6 +11,7 @@ from app.price.service import PriceService as PriceAPIService
 from app.sentiment.service import SentimentService
 from app.change.service import ChangeService
 from app.mcp.service import MCPService
+from app.macro.service import MacroService
 
 
 @lru_cache()
@@ -35,3 +36,9 @@ def get_change_service():
 def get_mcp_service():
     """Get MCP service instance."""
     return MCPService()
+
+
+@lru_cache()
+def get_macro_service():
+    """Get macro service instance."""
+    return MacroService()
