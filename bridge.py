@@ -35,14 +35,19 @@ class _FetchWorker(QThread):
 
     def run(self) -> None:
         try:
-            if self.use_mock:
+            from data import market
+            price_data = market.get_price_data(self.symbol, period_days=self.period_days)
+            if price_data is None:
+                logger.warning("Live market fetch failed for %s; falling back to mock chart data", self.symbol)
                 from data import mock_data
                 price_data = mock_data.get_price_data(self.symbol, period_days=self.period_days)
+
+            if self.use_mock:
+                from data import mock_data
                 news = mock_data.get_news(self.symbol) if self.include_context else []
                 insight = mock_data.get_ai_insight(self.symbol) if self.include_context else ""
             else:
-                from data import market, news as news_module, ai_engine
-                price_data = market.get_price_data(self.symbol, period_days=self.period_days) or {}
+                from data import news as news_module, ai_engine
                 if self.include_context:
                     news = news_module.get_news(self.symbol)
                     insight = ai_engine.get_ai_insight(self.symbol, price_data, news)
@@ -50,7 +55,7 @@ class _FetchWorker(QThread):
                     news = []
                     insight = ""
 
-            self.data_ready.emit(price_data, news, insight)
+            self.data_ready.emit(price_data or {}, news, insight)
 
         except Exception as exc:
             logger.error("FetchWorker error for %s: %s", self.symbol, exc)
