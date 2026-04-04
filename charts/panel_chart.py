@@ -73,7 +73,7 @@ class PanelChart(QWidget):
             btn.setCheckable(True)
             btn.setChecked(value == self._active_range)
             btn.setStyleSheet(_BTN_STYLE)
-            btn.clicked.connect(lambda checked, v=value: self._on_range(v) if checked else None)
+            btn.clicked.connect(lambda checked, v=value: self._on_range(v))
             self._range_group.addButton(btn)
             self._range_buttons[value] = btn
             range_row.addWidget(btn)
@@ -89,7 +89,7 @@ class PanelChart(QWidget):
             btn.setCheckable(True)
             btn.setChecked(value == self._active_interval)
             btn.setStyleSheet(_BTN_STYLE)
-            btn.clicked.connect(lambda checked, v=value: self._on_interval(v) if checked else None)
+            btn.clicked.connect(lambda checked, v=value: self._on_interval(v))
             self._interval_group.addButton(btn)
             self._interval_buttons[value] = btn
             interval_row.addWidget(btn)

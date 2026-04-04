@@ -20,6 +20,9 @@ _INTERVAL_MAP = {
     "1M": "1mo",
 }
 
+_VALID_PERIODS = {"6mo", "1y", "5y", "max"}
+_VALID_INTERVALS = {"1d", "1wk", "1mo"}
+
 
 def get_price_data(symbol: str, range_str: str = "1y", interval_str: str = "1d") -> Optional[dict]:
     """
@@ -33,6 +36,12 @@ def get_price_data(symbol: str, range_str: str = "1y", interval_str: str = "1d")
 
         range_mapped = _RANGE_MAP.get(range_str, range_str.lower())
         interval_mapped = _INTERVAL_MAP.get(interval_str, interval_str.lower())
+        if range_mapped not in _VALID_PERIODS:
+            logger.warning("Unsupported range '%s' for %s; defaulting to 1y", range_str, symbol)
+            range_mapped = "1y"
+        if interval_mapped not in _VALID_INTERVALS:
+            logger.warning("Unsupported interval '%s' for %s; defaulting to 1d", interval_str, symbol)
+            interval_mapped = "1d"
         ticker = yf.Ticker(symbol)
         df = ticker.history(period=range_mapped, interval=interval_mapped)
 
