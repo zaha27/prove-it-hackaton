@@ -299,7 +299,7 @@ class ConsensusResponse(BaseModel):
 class ConsensusRequest(BaseModel):
     """Request for consensus analysis with full investor profile."""
 
-    commodity: str = Field(..., description="Commodity symbol")
+    commodity: str = Field("", description="Commodity symbol (overridden by URL path)")
     max_rounds: int = Field(3, description="Maximum rounds", ge=1, le=10)
     agreement_threshold: float = Field(0.8, ge=0.0, le=1.0)
     # Legacy string kept for backward compat

@@ -92,7 +92,7 @@ async def get_mcp_status():
 )
 async def get_consensus_analysis(
     commodity: str,
-    request_body: ConsensusRequest | None = None,
+    request_body: ConsensusRequest = ConsensusRequest(),
     max_rounds: int = Query(3, description="Maximum rounds", ge=1, le=10),
     agreement_threshold: float = Query(0.8, description="Agreement threshold", ge=0.0, le=1.0),
     service: MCPService = Depends(get_mcp_service),
@@ -103,22 +103,23 @@ async def get_consensus_analysis(
     Returns the full analysis including XGBoost input and DeepSeek's reality check.
     """
     try:
-        if request_body:
-            request = ConsensusRequest(
-                commodity=commodity.upper(),
-                max_rounds=request_body.max_rounds,
-                agreement_threshold=request_body.agreement_threshold,
-                risk_profile=request_body.risk_profile,
-                risk_score=request_body.risk_score,
-                investment_horizon=request_body.investment_horizon,
-                market_familiarity=request_body.market_familiarity,
-            )
-        else:
-            request = ConsensusRequest(
-                commodity=commodity.upper(),
-                max_rounds=max_rounds,
-                agreement_threshold=agreement_threshold,
-            )
+        # Always override commodity from the URL path (body may omit it)
+        request = ConsensusRequest(
+            commodity=commodity.upper(),
+            max_rounds=request_body.max_rounds,
+            agreement_threshold=request_body.agreement_threshold,
+            risk_profile=request_body.risk_profile,
+            risk_score=request_body.risk_score,
+            investment_horizon=request_body.investment_horizon,
+            market_familiarity=request_body.market_familiarity,
+        )
+        print(
+            f"[consensus] commodity={request.commodity} "
+            f"risk_profile={request.risk_profile} "
+            f"risk_score={request.risk_score} "
+            f"investment_horizon={request.investment_horizon} "
+            f"market_familiarity={request.market_familiarity}"
+        )
         return await service.get_consensus(request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

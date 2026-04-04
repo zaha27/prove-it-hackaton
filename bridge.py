@@ -107,7 +107,7 @@ class _FetchWorker(QThread):
                 if self.include_context:
                     news    = news_module.get_news(self.symbol)
                     # No XGBoost in fallback mode — pass empty prediction
-                    insight_text = ai_engine.get_ai_insight(self.symbol, {}, news)
+                    insight_text = ai_engine.get_ai_insight(self.symbol, {}, news, self.user_profile)
                     consensus_result = {"final_recommendation": insight_text, "fallback": True}
                 else:
                     news, consensus_result = [], None
