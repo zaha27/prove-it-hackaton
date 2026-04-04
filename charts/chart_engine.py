@@ -1,5 +1,5 @@
 """
-charts/chart_engine.py — Build Plotly candlestick charts and return HTML strings.
+charts/chart_engine.py — Build Lightweight Charts candlestick charts and return HTML strings.
 """
 import json
 import logging
@@ -25,7 +25,7 @@ def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
 
     Args:
         ohlcv: dict with keys dates, open, high, low, close, volume, symbol, currency.
-        indicator: one of "none", "rsi", "macd", "bollinger".
+        indicator: legacy parameter kept for compatibility; currently ignored.
 
     Returns:
         A self-contained HTML string that can be loaded into QWebEngineView.
@@ -42,6 +42,8 @@ def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
             if " " in text:
                 text = text.split(" ", 1)[0]
             return text
+
+        _ = indicator
 
         dates = ohlcv["dates"]
         opens = ohlcv["open"]
@@ -90,7 +92,7 @@ body { margin: 0; padding: 0; background-color: #080808; overflow: hidden; }
 </head>
 <body>
   <div id="chart"></div>
-  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
   <script>
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
       layout: { background: { type: 'solid', color: '#0D0D0D' }, textColor: '#F1F5F9' },
@@ -114,8 +116,8 @@ body { margin: 0; padding: 0; background-color: #080808; overflow: hidden; }
       scaleMargins: { top: 0.75, bottom: 0 }
     });
 
-    const candlesData = DATA_CANDLES;
-    const volumeData = DATA_VOLUME;
+    const candlesData = __DATA_CANDLES__;
+    const volumeData = __DATA_VOLUME__;
 
     candleSeries.setData(candlesData);
     volumeSeries.setData(volumeData);
@@ -128,7 +130,7 @@ body { margin: 0; padding: 0; background-color: #080808; overflow: hidden; }
 </body>
 </html>
 """
-        return html_template.replace("DATA_CANDLES", candles_json).replace("DATA_VOLUME", volume_json)
+        return html_template.replace("__DATA_CANDLES__", candles_json).replace("__DATA_VOLUME__", volume_json)
 
     except Exception as exc:
         logger.error("chart_engine error: %s", exc)
