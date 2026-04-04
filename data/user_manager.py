@@ -89,9 +89,38 @@ class UserManager:
         familiarity = int(profile.get("market_familiarity", 3))
         strategy = profile.get("preferred_strategy", "Balanced")
 
+        risk = max(1, min(5, risk))
+        horizon = max(1, min(5, horizon))
+        familiarity = max(1, min(5, familiarity))
+
         risk_label = _RISK_LABELS.get(risk, "balanced")
         horizon_label = _HORIZON_LABELS.get(horizon, "months")
         familiarity_label = _FAMILIARITY_LABELS.get(familiarity, "intermediate")
+
+        actionable_constraints: list[str] = []
+        if horizon >= 4:
+            actionable_constraints.append(
+                "CONSTRAINT: Do NOT recommend short selling. Focus on macro trends over technical noise. Suggest Accumulate/Reduce."
+            )
+        elif horizon <= 2:
+            actionable_constraints.append(
+                "CONSTRAINT: Focus on immediate technical breakouts and momentum. Shorting is allowed."
+            )
+
+        if risk <= 2:
+            actionable_constraints.append(
+                "CONSTRAINT: Prioritize capital preservation. Reject low-conviction signals."
+            )
+        elif risk >= 4:
+            actionable_constraints.append(
+                "CONSTRAINT: Maximize returns. Accept higher volatility setups."
+            )
+
+        constraints_section = "ACTIONABLE CONSTRAINTS:\n"
+        if actionable_constraints:
+            constraints_section += "\n".join(actionable_constraints)
+        else:
+            constraints_section += "CONSTRAINT: Keep a balanced approach between risk and opportunity."
 
         return (
             f"User Profile: {risk_label} investor (risk score {risk}/5), "
@@ -101,6 +130,7 @@ class UserManager:
             f"Tailor your advice specifically to these constraints. "
             f"{'Use simple language and focus on risk management.' if familiarity <= 2 else ''}"
             f"{'Assume advanced knowledge; include technical detail.' if familiarity >= 4 else ''}"
+            f"\n\n{constraints_section}"
         ).strip()
 
     @staticmethod
