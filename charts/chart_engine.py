@@ -1,12 +1,9 @@
 """
 charts/chart_engine.py — Build Plotly candlestick charts and return HTML strings.
 """
+import json
 import logging
 from datetime import datetime, date
-
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +21,7 @@ _RED    = "#F87171"   # bearish
 
 def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
     """
-    Build a dark-themed Plotly candlestick + volume HTML string.
+    Build a dark-themed Lightweight Charts candlestick + volume HTML string.
 
     Args:
         ohlcv: dict with keys dates, open, high, low, close, volume, symbol, currency.
@@ -34,122 +31,104 @@ def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
         A self-contained HTML string that can be loaded into QWebEngineView.
     """
     try:
-        def _to_date(value):
+        def _to_iso_date(value):
             if isinstance(value, datetime):
-                return value
+                return value.strftime("%Y-%m-%d")
             if isinstance(value, date):
-                return datetime.combine(value, datetime.min.time())
-            return pd.to_datetime(str(value))
+                return value.strftime("%Y-%m-%d")
+            text = str(value)
+            if "T" in text:
+                text = text.split("T", 1)[0]
+            if " " in text:
+                text = text.split(" ", 1)[0]
+            return text
 
-        dates = [_to_date(v) for v in ohlcv["dates"]]
-        opens = [float(v) for v in ohlcv["open"]]
-        highs = [float(v) for v in ohlcv["high"]]
-        lows = [float(v) for v in ohlcv["low"]]
-        closes = [float(v) for v in ohlcv["close"]]
-        volumes = [float(v) for v in ohlcv["volume"]]
-        volume_colors = [_GREEN if c >= o else _RED for o, c in zip(opens, closes)]
+        dates = ohlcv["dates"]
+        opens = ohlcv["open"]
+        highs = ohlcv["high"]
+        lows = ohlcv["low"]
+        closes = ohlcv["close"]
+        volumes = ohlcv["volume"]
 
-        if indicator in {"rsi", "macd"}:
-            fig = make_subplots(
-                rows=3,
-                cols=1,
-                shared_xaxes=True,
-                vertical_spacing=0.03,
-                row_heights=[0.60, 0.20, 0.20],
+        candles = []
+        volumes_data = []
+        for d, o, h, l, c, v in zip(dates, opens, highs, lows, closes, volumes):
+            time_value = _to_iso_date(d)
+            open_value = float(o)
+            close_value = float(c)
+            candles.append(
+                {
+                    "time": time_value,
+                    "open": open_value,
+                    "high": float(h),
+                    "low": float(l),
+                    "close": close_value,
+                }
             )
-            volume_row = 3
-        else:
-            fig = make_subplots(
-                rows=2,
-                cols=1,
-                shared_xaxes=True,
-                vertical_spacing=0.03,
-                row_heights=[0.75, 0.25],
+            volumes_data.append(
+                {
+                    "time": time_value,
+                    "value": float(v),
+                    "color": "rgba(74,222,128,0.5)" if close_value >= open_value else "rgba(248,113,113,0.5)",
+                }
             )
-            volume_row = 2
 
-        fig.add_trace(
-            go.Candlestick(
-                x=dates,
-                open=opens,
-                high=highs,
-                low=lows,
-                close=closes,
-                increasing_line_color=_GREEN,
-                decreasing_line_color=_RED,
-                showlegend=False,
-                name="Price",
-            ),
-            row=1,
-            col=1,
-        )
+        candles.sort(key=lambda item: item["time"])
+        volumes_data.sort(key=lambda item: item["time"])
 
-        if indicator == "bollinger":
-            close_s = pd.Series(closes)
-            bb_mid = close_s.rolling(window=20).mean()
-            bb_std = close_s.rolling(window=20).std()
-            bb_upper = bb_mid + 2 * bb_std
-            bb_lower = bb_mid - 2 * bb_std
-            fig.add_trace(go.Scatter(x=dates, y=bb_mid, mode="lines", line=dict(color=_ACCENT, width=1), name="BB Mid"), row=1, col=1)
-            fig.add_trace(go.Scatter(x=dates, y=bb_upper, mode="lines", line=dict(color=_DIM, width=1), name="BB Upper"), row=1, col=1)
-            fig.add_trace(go.Scatter(x=dates, y=bb_lower, mode="lines", line=dict(color=_DIM, width=1), name="BB Lower", fill="tonexty", fillcolor="rgba(147,197,253,0.08)"), row=1, col=1)
-        elif indicator == "rsi":
-            close_s = pd.Series(closes)
-            delta = close_s.diff()
-            gain = delta.clip(lower=0).rolling(window=14).mean()
-            loss = (-delta.clip(upper=0)).rolling(window=14).mean()
-            loss_safe = loss.copy()
-            loss_safe = loss_safe.mask(loss_safe == 0, pd.NA)
-            rs = gain / loss_safe
-            rsi = 100 - (100 / (1 + rs))
-            rsi = rsi.where(loss != 0, 100.0)
-            fig.add_trace(go.Scatter(x=dates, y=rsi, mode="lines", line=dict(color=_ACCENT, width=1.5), name="RSI"), row=2, col=1)
-            fig.add_hline(y=70, line=dict(color=_DIM, width=1, dash="dot"), row=2, col=1)
-            fig.add_hline(y=30, line=dict(color=_DIM, width=1, dash="dot"), row=2, col=1)
-            fig.update_yaxes(range=[0, 100], row=2, col=1)
-        elif indicator == "macd":
-            close_s = pd.Series(closes)
-            ema_fast = close_s.ewm(span=12, adjust=False).mean()
-            ema_slow = close_s.ewm(span=26, adjust=False).mean()
-            macd = ema_fast - ema_slow
-            signal = macd.ewm(span=9, adjust=False).mean()
-            hist = macd - signal
-            hist_colors = [_GREEN if v >= 0 else _RED for v in hist.fillna(0).tolist()]
-            fig.add_trace(go.Bar(x=dates, y=hist, marker_color=hist_colors, name="MACD Hist"), row=2, col=1)
-            fig.add_trace(go.Scatter(x=dates, y=macd, mode="lines", line=dict(color=_ACCENT, width=1.5), name="MACD"), row=2, col=1)
-            fig.add_trace(go.Scatter(x=dates, y=signal, mode="lines", line=dict(color=_MUTED, width=1.2), name="Signal"), row=2, col=1)
+        candles_json = json.dumps(candles)
+        volume_json = json.dumps(volumes_data)
 
-        fig.add_trace(
-            go.Bar(
-                x=dates,
-                y=volumes,
-                marker_color=volume_colors,
-                opacity=0.7,
-                showlegend=False,
-                name="Volume",
-            ),
-            row=volume_row,
-            col=1,
-        )
+        html_template = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { margin: 0; padding: 0; background-color: #080808; overflow: hidden; }
+#chart { width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+  <div id="chart"></div>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <script>
+    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+      layout: { background: { type: 'solid', color: '#0D0D0D' }, textColor: '#F1F5F9' },
+      grid: { vertLines: { color: '#1C1C1C' }, horzLines: { color: '#1C1C1C' } },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      rightPriceScale: { borderColor: '#1C1C1C' },
+      timeScale: { borderColor: '#1C1C1C', timeVisible: true }
+    });
 
-        fig.update_layout(
-            template="plotly_dark",
-            paper_bgcolor=_BG,
-            plot_bgcolor=_PANEL,
-            font=dict(color=_TEXT, size=11),
-            margin=dict(l=10, r=10, t=10, b=10),
-            xaxis_rangeslider_visible=False,
-            hovermode="x unified",
-            legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0.0),
-        )
-        fig.update_xaxes(showgrid=True, gridcolor=_GRID, zeroline=False)
-        fig.update_yaxes(showgrid=True, gridcolor=_GRID, zeroline=False)
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#4ADE80',
+      downColor: '#F87171',
+      borderVisible: false,
+      wickUpColor: '#4ADE80',
+      wickDownColor: '#F87171'
+    });
 
-        return fig.to_html(
-            full_html=True,
-            include_plotlyjs="inline",
-            config={"displayModeBar": False, "responsive": True},
-        )
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      scaleMargins: { top: 0.75, bottom: 0 }
+    });
+
+    const candlesData = DATA_CANDLES;
+    const volumeData = DATA_VOLUME;
+
+    candleSeries.setData(candlesData);
+    volumeSeries.setData(volumeData);
+    chart.timeScale().fitContent();
+
+    window.addEventListener('resize', function() {
+      chart.resize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
+"""
+        return html_template.replace("DATA_CANDLES", candles_json).replace("DATA_VOLUME", volume_json)
 
     except Exception as exc:
         logger.error("chart_engine error: %s", exc)
