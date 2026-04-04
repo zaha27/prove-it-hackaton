@@ -7,7 +7,9 @@ Data flow:
                             └── data/market + data/ai_engine       [fallback if backend down]
 """
 import logging
+import os
 
+import requests
 from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
@@ -15,6 +17,8 @@ logger = logging.getLogger(__name__)
 LIVE_REFRESH_INTERVAL_MS = 600_000   # 10 minutes
 DEFAULT_RANGE    = "1Y"
 DEFAULT_INTERVAL = "1D"
+MACRO_BASE_URL   = os.getenv("BACKEND_URL", "http://localhost:8000")
+MACRO_TIMEOUT_S  = 12
 
 
 class _FetchWorker(QThread):
@@ -111,6 +115,66 @@ class _FetchWorker(QThread):
             self.error_occurred.emit(str(exc))
 
 
+class _MacroFetchWorker(QThread):
+    """Background thread — fetches macro news and macro insight from FastAPI backend."""
+
+    macro_data_ready = pyqtSignal(list, str)  # (news, insight)
+    error_occurred = pyqtSignal(str)
+
+    def run(self) -> None:
+        try:
+            news_resp = requests.get(
+                f"{MACRO_BASE_URL}/macro/news",
+                timeout=MACRO_TIMEOUT_S,
+            )
+            news_resp.raise_for_status()
+            news_payload = news_resp.json()
+            if isinstance(news_payload, list):
+                news_items = news_payload
+            elif isinstance(news_payload, dict):
+                news_items = (
+                    news_payload.get("news")
+                    or news_payload.get("items")
+                    or news_payload.get("articles")
+                    or []
+                )
+            else:
+                news_items = []
+
+            insight_resp = requests.get(
+                f"{MACRO_BASE_URL}/macro/insight",
+                timeout=MACRO_TIMEOUT_S,
+            )
+            insight_resp.raise_for_status()
+            insight_payload = insight_resp.json()
+            if isinstance(insight_payload, str):
+                insight_text = insight_payload
+            elif isinstance(insight_payload, dict):
+                insight_text = (
+                    insight_payload.get("insight")
+                    or insight_payload.get("text")
+                    or insight_payload.get("content")
+                    or ""
+                )
+            else:
+                insight_text = ""
+
+            self.macro_data_ready.emit(news_items, insight_text)
+
+        except requests.exceptions.ConnectionError:
+            self.error_occurred.emit(
+                f"Macro data unavailable: cannot connect to backend at {MACRO_BASE_URL}."
+            )
+        except requests.exceptions.Timeout:
+            self.error_occurred.emit(
+                "Macro data request timed out. Please try again in a few moments."
+            )
+        except requests.exceptions.RequestException as exc:
+            self.error_occurred.emit(f"Macro data request failed: {exc}")
+        except Exception as exc:
+            self.error_occurred.emit(f"Unexpected macro data error: {exc}")
+
+
 class AppBridge(QObject):
     """Mediator between the UI (MainWindow, PanelChart) and the data layer."""
 
@@ -119,6 +183,7 @@ class AppBridge(QObject):
         self._window          = main_window
         self._panel_chart     = panel_chart
         self._worker: _FetchWorker | None = None
+        self._macro_worker: _MacroFetchWorker | None = None
         self._current_range    = DEFAULT_RANGE
         self._current_interval = DEFAULT_INTERVAL
         self._current_symbol: str | None = None
@@ -136,11 +201,27 @@ class AppBridge(QObject):
         self._live_timer.timeout.connect(self._on_live_tick)
         self._live_timer.start()
 
+        # Load macro view data once on app startup.
+        self.fetch_macro_data()
+
     # ── Public ─────────────────────────────────────────────────────────────────
 
     def on_select(self, symbol: str) -> None:
         self._current_symbol = symbol
         self._fetch(symbol)
+
+    def fetch_macro_data(self) -> None:
+        if self._macro_worker and self._macro_worker.isRunning():
+            self._macro_worker.quit()
+            self._macro_worker.wait(100)
+            self._macro_worker = None
+
+        self._set_macro_loading(True)
+
+        self._macro_worker = _MacroFetchWorker()
+        self._macro_worker.macro_data_ready.connect(self._on_macro_data_ready)
+        self._macro_worker.error_occurred.connect(self._on_macro_error)
+        self._macro_worker.start()
 
     # ── Private ────────────────────────────────────────────────────────────────
 
@@ -211,3 +292,20 @@ class AppBridge(QObject):
         logger.error("Fetch failed: %s", message)
         self._window.set_loading(False)
         self._window.update_insight(f"Data fetch failed:\n\n{message}")
+
+    def _on_macro_data_ready(self, news: list, insight: str) -> None:
+        self._window.update_macro_news(news)
+        self._window.update_macro_insight(insight)
+        self._set_macro_loading(False)
+
+    def _on_macro_error(self, message: str) -> None:
+        logger.error("Macro fetch failed: %s", message)
+        self._window.update_macro_news([])
+        self._window.update_macro_insight(f"Macro data fetch failed:\n\n{message}")
+        self._set_macro_loading(False)
+
+    def _set_macro_loading(self, is_loading: bool) -> None:
+        if hasattr(self._window, "macro_ai"):
+            self._window.macro_ai.set_loading(is_loading)
+        elif hasattr(self._window, "panel_ai"):
+            self._window.panel_ai.set_loading(is_loading)
