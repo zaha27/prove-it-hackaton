@@ -87,28 +87,37 @@ async def get_mcp_status():
 @router.post(
     "/consensus/{commodity}",
     response_model=ConsensusResponse,
-    summary="Get consensus trading recommendation",
-    description="Run DeepSeek-Gemma4 debate loop to reach consensus on trading decision",
+    summary="Get neuro-symbolic trading recommendation",
+    description="XGBoost quantitative signal validated by DeepSeek Risk Manager",
 )
 async def get_consensus_analysis(
     commodity: str,
-    max_rounds: int = Query(5, description="Maximum debate rounds", ge=1, le=10),
+    request_body: ConsensusRequest | None = None,
+    max_rounds: int = Query(3, description="Maximum rounds", ge=1, le=10),
     agreement_threshold: float = Query(0.8, description="Agreement threshold", ge=0.0, le=1.0),
     service: MCPService = Depends(get_mcp_service),
 ):
-    """Get trading recommendation via DeepSeek-Gemma4 consensus debate.
+    """Get trading recommendation via XGBoost → DeepSeek neuro-symbolic pipeline.
 
-    This endpoint runs a multi-round debate between DeepSeek and Gemma4 (with
-    Gemini MCP web search) until they reach consensus on a trading decision.
-
-    Returns full debate history and final recommendation.
+    XGBoost computes the quantitative signal; DeepSeek validates it against macro news.
+    Returns the full analysis including XGBoost input and DeepSeek's reality check.
     """
     try:
-        request = ConsensusRequest(
-            commodity=commodity.upper(),
-            max_rounds=max_rounds,
-            agreement_threshold=agreement_threshold,
-        )
+        # Body fields take precedence over query params
+        if request_body:
+            request = request_body
+            request = ConsensusRequest(
+                commodity=commodity.upper(),
+                max_rounds=request_body.max_rounds,
+                agreement_threshold=request_body.agreement_threshold,
+                risk_profile=request_body.risk_profile,
+            )
+        else:
+            request = ConsensusRequest(
+                commodity=commodity.upper(),
+                max_rounds=max_rounds,
+                agreement_threshold=agreement_threshold,
+            )
         return await service.get_consensus(request)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,7 +1,12 @@
 """
-data/ai_engine.py — LLM-powered commodity analysis via DeepSeek + Ollama fallback.
+data/ai_engine.py — Neuro-Symbolic insight via DeepSeek.
 Used only when the FastAPI backend is unavailable.
+
+Architecture: XGBoost (Quant) → DeepSeek (Risk Manager)
+    - XGBoost prediction is the quantitative signal
+    - DeepSeek validates/invalidates it against macro news
 """
+import json
 import logging
 import os
 from typing import Optional
@@ -9,99 +14,104 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
-    "You are a senior commodity market analyst with 20 years of experience. "
-    "You combine technical analysis, fundamental analysis, and macro-economic context. "
-    "Always structure your response as Chain-of-Thought reasoning: "
-    "Step 1 (Macro context) → Step 2 (Supply/demand) → Step 3 (Technical) → Conclusion with bias. "
-    "Be concise, data-driven, and avoid speculation without basis."
+    "You are a Macroeconomic Risk Manager at a commodity trading desk. "
+    "You receive a quantitative prediction from an XGBoost model and a list of recent news headlines. "
+    "Your role is NOT to recalculate the mathematics — the XGBoost model handles that. "
+    "Your role is to validate or invalidate the XGBoost signal using fundamental macro context: "
+    "geopolitical events, supply/demand shocks, central bank decisions, and news sentiment. "
+    "Structure your response as: "
+    "1. XGBoost Signal Summary → 2. News/Macro Context → 3. Validation or Override → 4. Final Verdict. "
+    "Be concise and data-driven."
 )
 
-_PROMPT_TEMPLATE = """
-Analyze the following commodity: {symbol_name} ({symbol})
+_PROMPT_TEMPLATE = """## XGBoost Quantitative Signal — {symbol_name} ({symbol})
 
-## Recent Price Data (last 5 days)
-{price_summary}
+**Model output:**
+- Direction: {xgb_direction}
+- Predicted change: {xgb_prediction}
+- Confidence: {xgb_confidence}
 
-## Recent News
+## Recent News Headlines
 {news_summary}
 
-Provide a Chain-of-Thought analysis concluding with a directional bias (bullish/bearish/neutral)
-and key price levels to watch. Keep response under {max_tokens} tokens.
+## Your Task
+Does the macro/news context VALIDATE or CONTRADICT the XGBoost {xgb_direction} signal?
+Provide your Reality Check verdict with a final recommendation (BUY / HOLD / SELL).
 """
+
+_SYMBOLS = {
+    "GC=F": "Gold", "SI=F": "Silver", "CL=F": "Crude Oil",
+    "NG=F": "Natural Gas", "ZW=F": "Wheat", "HG=F": "Copper",
+}
 
 
 def get_ai_insight(
     symbol: str,
-    price_data: Optional[dict],
-    news: list[dict],
+    xgboost_prediction: Optional[dict],
+    news_list: list[dict],
 ) -> str:
     """
-    Generate an AI insight using DeepSeek (primary) or Ollama/Gemma4 (fallback).
+    Generate a neuro-symbolic insight using DeepSeek as Risk Manager.
     Called only when the FastAPI backend is down.
+
+    Args:
+        symbol: Commodity ticker (e.g. "GC=F")
+        xgboost_prediction: Dict with keys: prediction (float), confidence (float),
+                            reasoning (str), top_features (list). Pass {} if unavailable.
+        news_list: List of news dicts with 'title', 'sentiment' keys.
     """
-    prompt = _build_prompt(symbol, price_data, news)
+    prompt = _build_prompt(symbol, xgboost_prediction or {}, news_list)
 
-    # 1. Try DeepSeek
     deepseek_key = os.getenv("DEEPSEEK_API_KEY", "")
-    if deepseek_key:
-        try:
-            from openai import OpenAI
-            client = OpenAI(
-                api_key=deepseek_key,
-                base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
-            )
-            response = client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=int(os.getenv("LLM_MAX_TOKENS", "1024")),
-                temperature=0.3,
-            )
-            return response.choices[0].message.content or ""
-        except Exception as exc:
-            logger.warning("DeepSeek fallback failed: %s — trying Ollama", exc)
-
-    # 2. Try Ollama
-    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    ollama_model = os.getenv("OLLAMA_MODEL", "gemma4")
-    try:
-        import requests
-        resp = requests.post(
-            f"{ollama_url}/api/generate",
-            json={"model": ollama_model, "prompt": f"{_SYSTEM_PROMPT}\n\n{prompt}", "stream": False},
-            timeout=60,
+    if not deepseek_key:
+        return (
+            "⚠️ AI analysis unavailable: DEEPSEEK_API_KEY not configured. "
+            "Add it to .env and restart the server."
         )
-        resp.raise_for_status()
-        return resp.json().get("response", "")
+
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=deepseek_key,
+            base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+        )
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=int(os.getenv("LLM_MAX_TOKENS", "1024")),
+            temperature=0.3,
+        )
+        return response.choices[0].message.content or ""
     except Exception as exc:
-        logger.error("Ollama fallback failed: %s", exc)
-
-    return (
-        "⚠️ AI analysis unavailable: backend is down, DeepSeek key missing or invalid, "
-        "and Ollama is not reachable. Start the backend with: uv run server.py"
-    )
+        logger.error("DeepSeek call failed for %s: %s", symbol, exc)
+        return f"⚠️ AI analysis unavailable: {exc}"
 
 
-def _build_prompt(symbol: str, price_data: Optional[dict], news: list[dict]) -> str:
-    """Build the CoT prompt from price data and news items."""
-    _SYMBOLS = {
-        "GC=F": "Gold", "SI=F": "Silver", "CL=F": "Crude Oil",
-        "NG=F": "Natural Gas", "ZW=F": "Wheat", "HG=F": "Copper",
-    }
+def _build_prompt(symbol: str, xgboost_prediction: dict, news_list: list[dict]) -> str:
     symbol_name = _SYMBOLS.get(symbol, symbol)
 
-    if price_data and price_data.get("close"):
-        last5 = list(zip(price_data["dates"][-5:], price_data["close"][-5:]))
-        price_summary = "\n".join(f"  {d}: {c}" for d, c in last5)
-    else:
-        price_summary = "  No price data available."
+    # XGBoost signal
+    prediction = float(xgboost_prediction.get("prediction", 0))
+    confidence = float(xgboost_prediction.get("confidence", 0))
 
-    if news:
+    if prediction > 0.005:
+        xgb_direction = "BUY"
+    elif prediction < -0.005:
+        xgb_direction = "SELL"
+    else:
+        xgb_direction = "HOLD"
+
+    xgb_prediction_str = f"{prediction:+.2%}" if xgboost_prediction else "N/A (no XGBoost data)"
+    xgb_confidence_str = f"{confidence:.0%}" if xgboost_prediction else "N/A"
+
+    # News summary
+    if news_list:
         news_summary = "\n".join(
-            f"  [{item.get('sentiment','?').upper()}] {item.get('title','')}"
-            for item in news[:5]
+            f"  [{item.get('sentiment', '?').upper()}] {item.get('title', '')}"
+            for item in news_list[:5]
         )
     else:
         news_summary = "  No news available."
@@ -109,7 +119,8 @@ def _build_prompt(symbol: str, price_data: Optional[dict], news: list[dict]) -> 
     return _PROMPT_TEMPLATE.format(
         symbol=symbol,
         symbol_name=symbol_name,
-        price_summary=price_summary,
+        xgb_direction=xgb_direction,
+        xgb_prediction=xgb_prediction_str,
+        xgb_confidence=xgb_confidence_str,
         news_summary=news_summary,
-        max_tokens=os.getenv("LLM_MAX_TOKENS", "1024"),
     )

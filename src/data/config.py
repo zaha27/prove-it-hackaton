@@ -53,10 +53,6 @@ class Config:
     rl_success_threshold: float
     rl_failure_threshold: float
 
-    # Ollama (running on Windows host from WSL)
-    ollama_base_url: str
-    ollama_model: str
-
     @classmethod
     def from_env(cls) -> "Config":
         """Create configuration from environment variables."""
@@ -139,11 +135,6 @@ class Config:
             rl_failure_threshold=float(
                 os.getenv("RL_FAILURE_THRESHOLD", "-0.02")
             ),
-            # Ollama
-            ollama_base_url=os.getenv(
-                "OLLAMA_BASE_URL", "http://host.docker.internal:11434"
-            ),
-            ollama_model=os.getenv("OLLAMA_MODEL", "gemma4:e2b"),
         )
 
     def validate(self) -> None:

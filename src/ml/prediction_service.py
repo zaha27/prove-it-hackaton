@@ -9,20 +9,16 @@ from src.data.services.price_service import PriceService
 from src.features.xgboost_features import XGBoostFeatureEngineer
 from src.ml.chain_of_thought import create_chain_of_thought_logger
 from src.ml.xgboost_trainer import XGBoostTrainer
-from src.rl.ollama_client import OllamaClient
-
-
 class PredictionService:
-    """Unified prediction service combining XGBoost + Gemma4."""
+    """Unified prediction service: XGBoost (Quant) + DeepSeek (Risk Manager)."""
 
     def __init__(self, confidence_threshold: float = 0.6):
         """Initialize the prediction service.
 
         Args:
-            confidence_threshold: Minimum confidence before triggering Gemma4
+            confidence_threshold: Minimum confidence before triggering DeepSeek validation
         """
         self.xgb_trainer = XGBoostTrainer()
-        self.ollama = OllamaClient()
         self.confidence_threshold = confidence_threshold
         self.feature_engineer = XGBoostFeatureEngineer()
         self.price_service = PriceService()
@@ -185,17 +181,49 @@ Current Market Context:
   30-Day Change: {price_data.get('change_30d_pct', 0):+.2f}%
 """
 
+        question = (
+            f"The XGBoost model predicts a {xgb_prediction:+.2f}% return with low confidence "
+            f"({xgb_confidence:.2f}). Analyze the features and market context. "
+            "Should we trust this prediction? What is your assessment?"
+        )
         try:
-            result = self.ollama.deep_reasoning(
-                context=context,
-                question=f"The XGBoost model predicts a {xgb_prediction:+.2f}% return with low confidence ({xgb_confidence:.2f}). Analyze the features and market context. Should we trust this prediction? What's your assessment?",
-                confidence_threshold=0.6,
+            import os
+            from openai import OpenAI
+            api_key = os.getenv("DEEPSEEK_API_KEY", "")
+            if not api_key:
+                raise ValueError("DEEPSEEK_API_KEY not configured")
+            client = OpenAI(
+                api_key=api_key,
+                base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
             )
-            return result
+            resp = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a Macroeconomic Risk Manager. Analyze the XGBoost signal "
+                            "and validate it against context. Respond in JSON with keys: "
+                            "reasoning (str), conclusion (str), confidence (0-1), evidence (list)."
+                        ),
+                    },
+                    {"role": "user", "content": f"{context}\n\nQuestion: {question}"},
+                ],
+                max_tokens=512,
+                temperature=0.3,
+            )
+            import json as _json
+            raw = resp.choices[0].message.content or ""
+            try:
+                if "```json" in raw:
+                    raw = raw.split("```json")[1].split("```")[0].strip()
+                return _json.loads(raw)
+            except _json.JSONDecodeError:
+                return {"reasoning": raw, "conclusion": raw[:100], "confidence": 0.5, "evidence": []}
         except Exception as e:
             return {
                 "error": str(e),
-                "reasoning": "Failed to get Gemma4 analysis",
+                "reasoning": "DeepSeek validation unavailable",
                 "conclusion": "Unable to analyze",
                 "confidence": 0.0,
             }

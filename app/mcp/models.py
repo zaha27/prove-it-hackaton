@@ -306,3 +306,7 @@ class ConsensusRequest(BaseModel):
     agreement_threshold: float = Field(
         0.8, description="Agreement threshold for consensus", ge=0.0, le=1.0
     )
+    risk_profile: str = Field(
+        "Balanced",
+        description="User risk tolerance: Conservative, Balanced, or Aggressive",
+    )

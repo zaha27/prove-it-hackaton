@@ -14,7 +14,6 @@ from src.data.services.price_service import PriceService
 from src.features.xgboost_features import XGBoostFeatureEngineer
 from src.ml.prediction_service import PredictionService
 from src.rl.deep_researcher import DeepResearcher
-from src.rl.ollama_client import OllamaClient
 
 
 @dataclass
@@ -43,7 +42,6 @@ class StrategyGenerator:
         self.backtest_engine = BacktestEngine()
         self.prediction_tracker = PredictionTracker()
         self.deep_researcher = DeepResearcher()
-        self.ollama = OllamaClient()
         self.prediction_service = PredictionService()
         self.feature_engineer = XGBoostFeatureEngineer()
         self.low_confidence_threshold = 0.5
@@ -486,12 +484,12 @@ Generated Strategies:
 
             context += f"\nNews Context:\n{news_summary[:500]}"
 
-            # Perform deep reasoning
-            result = self.ollama.deep_reasoning(
-                context=context,
-                question=f"Why are these strategies low confidence? What factors are missing? Should we trust any of them?",
-                confidence_threshold=0.6,
-            )
+            # Perform deep reasoning via DeepSeek
+            result = self.llm_client.generate_insight(
+                commodity=commodity,
+                price_data={},
+                news_summary=context,
+            ).model_dump() if hasattr(self.llm_client, "generate_insight") else {}
 
             # If still uncertain, generate research task
             if result.get("needs_more_research"):

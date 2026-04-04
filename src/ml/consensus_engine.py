@@ -1,61 +1,77 @@
-"""Consensus Engine - DeepSeek + Gemma4 debate loop for trading decisions."""
+"""
+Neuro-Symbolic Engine — XGBoost (Quant) → DeepSeek (Risk Manager).
+
+Pipeline:
+    Yahoo Finance News → XGBoost (technical prediction)
+        → DeepSeek Reality Check (validates signal against macro news)
+        → Final Trading Recommendation
+"""
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
-from typing import Any
-
-from src.rl.ollama_client import OllamaClient
-from src.data.clients.deepseek_client import DeepSeekClient
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class DebateRound:
-    """Single round of debate between agents."""
+    """One pass: XGBoost quantitative signal + DeepSeek reality check."""
     round_number: int
-    gemma4_argument: str
+    gemma4_argument: str          # XGBoost quantitative signal summary
     gemma4_sources: list[str] = field(default_factory=list)
-    gemma4_position: dict = field(default_factory=dict)
-    deepseek_critique: str = ""
-    deepseek_counter: str = ""
+    gemma4_position: dict = field(default_factory=dict)   # XGBoost position
+    deepseek_critique: str = ""   # DeepSeek's macro analysis
+    deepseek_counter: str = ""    # DeepSeek's final verdict
     deepseek_position: dict = field(default_factory=dict)
     agreement_score: float = 0.0
 
 
 @dataclass
 class ConsensusResult:
-    """Final result of consensus process."""
+    """Final result of the neuro-symbolic pipeline."""
     commodity: str
     consensus_reached: bool
     rounds_conducted: int
     final_recommendation: str
     confidence: float
-    direction: str  # "buy", "sell", "hold"
-    risk_level: str  # "low", "medium", "high"
+    direction: str       # "buy", "sell", "hold"
+    risk_level: str      # "low", "medium", "high"
     debate_history: list[DebateRound] = field(default_factory=list)
     xgboost_input: dict = field(default_factory=dict)
     yahoo_news_summary: str = ""
     final_reasoning: str = ""
-    gemma4_final_position: dict = field(default_factory=dict)
-    deepseek_final_position: dict = field(default_factory=dict)
+    gemma4_final_position: dict = field(default_factory=dict)   # XGBoost position
+    deepseek_final_position: dict = field(default_factory=dict)  # DeepSeek position
+
+
+_RISK_MANAGER_SYSTEM = (
+    "You are a Macroeconomic Risk Manager at a commodity trading desk. "
+    "You receive a quantitative prediction from an XGBoost model and a list of recent news. "
+    "Your role is NOT to recalculate the mathematics — the XGBoost model handles that. "
+    "Your role is to validate or invalidate the XGBoost signal using fundamental macro context: "
+    "geopolitical events, supply/demand shocks, central bank decisions, and news sentiment. "
+    "Give a clear, concise verdict. Always respond in valid JSON."
+)
 
 
 class ConsensusEngine:
-    """DeepSeek + Gemma4 debate loop until agreement on trading decisions."""
+    """Neuro-Symbolic pipeline: XGBoost (Quant) validated by DeepSeek (Risk Manager)."""
 
     def __init__(
         self,
         max_rounds: int = 5,
         agreement_threshold: float = 0.8,
-        gemini_mcp=None,  # Will be injected
+        gemini_mcp=None,   # kept for API compat, unused
     ):
-        self.max_rounds = max_rounds
         self.agreement_threshold = agreement_threshold
-        self.ollama = OllamaClient()  # Gemma4
-        self.deepseek = DeepSeekClient()
-        self.gemini_mcp = gemini_mcp
+        self._api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        self._base_url = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+        self._model = "deepseek-chat"
+        self._max_tokens = int(os.getenv("LLM_MAX_TOKENS", "1024"))
+
+    # ── Public ────────────────────────────────────────────────────────────────
 
     async def reach_consensus(
         self,
@@ -63,471 +79,261 @@ class ConsensusEngine:
         xgboost_result: dict,
         price_data: dict,
         yahoo_news: list[dict],
+        risk_profile: str = "Balanced",
     ) -> ConsensusResult:
         """
-        Run debate loop between DeepSeek and Gemma4 until consensus.
+        Run XGBoost → DeepSeek Reality Check and return a ConsensusResult.
 
-        Args:
-            commodity: Commodity symbol (e.g., "GOLD", "OIL")
-            xgboost_result: XGBoost prediction with features
-            price_data: Current price data
-            yahoo_news: Yahoo Finance news articles with sentiment
-
-        Returns:
-            ConsensusResult with debate history and final recommendation
+        XGBoost provides the quantitative signal (prediction %, confidence, top features).
+        DeepSeek validates it against macro news context.
         """
-        logger.info(f"Starting consensus debate for {commodity}")
+        logger.info("Neuro-Symbolic pipeline starting for %s", commodity)
 
-        # Prepare initial context
         yahoo_summary = self._summarize_yahoo_news(yahoo_news)
         xgboost_summary = self._format_xgboost_result(xgboost_result)
 
-        # Initialize debate
-        debate_history: list[DebateRound] = []
-        gemma4_position: dict | None = None
-        deepseek_position: dict | None = None
+        # --- XGBoost position (The Quant) ---
+        xgb_direction = self._xgboost_to_direction(xgboost_result)
+        xgb_confidence = float(xgboost_result.get("confidence", 0.5))
+        xgb_prediction_pct = float(xgboost_result.get("prediction", 0))
 
-        for round_num in range(1, self.max_rounds + 1):
-            logger.info(f"  Debate Round {round_num}/{self.max_rounds}")
+        quant_argument = (
+            f"XGBoost Quantitative Signal — {commodity}\n"
+            f"Direction: {xgb_direction.upper()}\n"
+            f"Predicted change: {xgb_prediction_pct:+.2%}\n"
+            f"Model confidence: {xgb_confidence:.0%}\n\n"
+            f"Technical breakdown:\n{xgboost_summary}"
+        )
+        quant_position = {
+            "direction": xgb_direction,
+            "confidence": int(xgb_confidence * 100),
+            "risk_level": "medium",
+        }
 
-            # Gemma4's turn (with web search via Gemini MCP)
-            gemma4_response = await self._gemma4_turn(
-                round_num=round_num,
-                commodity=commodity,
-                xgboost_summary=xgboost_summary,
-                yahoo_summary=yahoo_summary,
-                price_data=price_data,
-                previous_deepseek_critique=deepseek_position.get("critique", "") if deepseek_position else "",
-            )
-
-            gemma4_position = gemma4_response["position"]
-
-            # DeepSeek's turn (critique)
-            deepseek_response = await self._deepseek_turn(
-                round_num=round_num,
-                commodity=commodity,
-                xgboost_summary=xgboost_summary,
-                yahoo_summary=yahoo_summary,
-                price_data=price_data,
-                gemma4_proposal=gemma4_response,
-                previous_rounds=debate_history,
-            )
-
-            deepseek_position = deepseek_response["position"]
-
-            # Record this round
-            agreement_score = self._calculate_agreement(
-                gemma4_position, deepseek_position
-            )
-
-            debate_round = DebateRound(
-                round_number=round_num,
-                gemma4_argument=gemma4_response["argument"],
-                gemma4_sources=gemma4_response.get("sources", []),
-                gemma4_position=gemma4_position,
-                deepseek_critique=deepseek_response["critique"],
-                deepseek_counter=deepseek_response["counter_argument"],
-                deepseek_position=deepseek_position,
-                agreement_score=agreement_score,
-            )
-            debate_history.append(debate_round)
-
-            logger.info(f"    Agreement score: {agreement_score:.2f}")
-
-            # Check for consensus
-            if agreement_score >= self.agreement_threshold:
-                logger.info(f"  Consensus reached in round {round_num}")
-                consensus_reached = True
-                break
-        else:
-            # Max rounds reached without consensus
-            logger.info(f"  Max rounds reached without full consensus")
-            consensus_reached = False
-
-        # Generate final recommendation
-        final_result = await self._generate_final_recommendation(
+        # --- DeepSeek Reality Check (The Risk Manager) ---
+        ds_response = await self._deepseek_reality_check(
             commodity=commodity,
-            debate_history=debate_history,
-            xgboost_result=xgboost_result,
+            xgboost_summary=xgboost_summary,
             yahoo_summary=yahoo_summary,
+            price_data=price_data,
+            xgb_direction=xgb_direction,
+            xgb_confidence=xgb_confidence,
+            risk_profile=risk_profile,
+        )
+
+        ds_position = ds_response.get("position", {})
+        final_direction = ds_response.get("final_direction", xgb_direction)
+        final_confidence = float(ds_response.get("confidence", xgb_confidence))
+
+        # Agreement: does DeepSeek validate XGBoost's direction?
+        direction_match = ds_position.get("direction", final_direction) == xgb_direction
+        agreement_score = 0.9 if direction_match else 0.4
+        consensus_reached = direction_match
+
+        debate_round = DebateRound(
+            round_number=1,
+            gemma4_argument=quant_argument,
+            gemma4_sources=[],
+            gemma4_position=quant_position,
+            deepseek_critique=ds_response.get("critique", ""),
+            deepseek_counter=ds_response.get("final_recommendation", final_direction.upper()),
+            deepseek_position=ds_position,
+            agreement_score=agreement_score,
+        )
+
+        logger.info(
+            "Pipeline complete for %s: %s (confidence %.0f%%, consensus=%s)",
+            commodity, final_direction.upper(), final_confidence * 100, consensus_reached,
         )
 
         return ConsensusResult(
             commodity=commodity,
             consensus_reached=consensus_reached,
-            rounds_conducted=len(debate_history),
-            final_recommendation=final_result["recommendation"],
-            confidence=final_result["confidence"],
-            direction=final_result["direction"],
-            risk_level=final_result["risk_level"],
-            debate_history=debate_history,
+            rounds_conducted=1,
+            final_recommendation=ds_response.get("final_recommendation", final_direction.upper()),
+            confidence=final_confidence,
+            direction=final_direction,
+            risk_level=ds_position.get("risk_level", "medium"),
+            debate_history=[debate_round],
             xgboost_input=xgboost_result,
             yahoo_news_summary=yahoo_summary,
-            final_reasoning=final_result["reasoning"],
-            gemma4_final_position=gemma4_position or {},
-            deepseek_final_position=deepseek_position or {},
+            final_reasoning=ds_response.get("reasoning", ""),
+            gemma4_final_position=quant_position,
+            deepseek_final_position=ds_position,
         )
 
-    async def _gemma4_turn(
+    # ── Private ────────────────────────────────────────────────────────────────
+
+    async def _deepseek_reality_check(
         self,
-        round_num: int,
         commodity: str,
         xgboost_summary: str,
         yahoo_summary: str,
         price_data: dict,
-        previous_deepseek_critique: str,
+        xgb_direction: str,
+        xgb_confidence: float,
+        risk_profile: str = "Balanced",
     ) -> dict:
-        """Gemma4's turn - analyze and propose with web search."""
+        """Call DeepSeek to validate the XGBoost signal against macro news."""
 
-        # Build prompt for Gemma4
-        if round_num == 1:
-            prompt = f"""You are Gemma4, an AI trading analyst. Analyze the following data for {commodity} and propose an initial trading position.
+        current_price = price_data.get("current_price", price_data.get("current", "N/A"))
+        change_24h = price_data.get("change_24h", price_data.get("change_24h_pct", "N/A"))
 
-## Data Summary
+        _RISK_INSTRUCTIONS = {
+            "Conservative": (
+                "The user has a CONSERVATIVE risk profile. "
+                "Prioritize capital preservation. Only validate BUY/SELL signals if news clearly supports them. "
+                "Default to HOLD when uncertain. Lower confidence scores when news is mixed."
+            ),
+            "Balanced": (
+                "The user has a BALANCED risk profile. "
+                "Follow the XGBoost signal unless macro context clearly contradicts it. "
+                "Give equal weight to quantitative and fundamental signals."
+            ),
+            "Aggressive": (
+                "The user has an AGGRESSIVE risk profile. "
+                "Amplify conviction when XGBoost and news align. "
+                "Accept higher risk — lean toward stronger directional calls (BUY/SELL over HOLD)."
+            ),
+        }
+        risk_instruction = _RISK_INSTRUCTIONS.get(risk_profile, _RISK_INSTRUCTIONS["Balanced"])
 
-**XGBoost Technical Analysis:**
+        prompt = f"""## XGBoost Quantitative Model — {commodity}
 {xgboost_summary}
 
-**Yahoo Finance News Summary:**
+The model signals: **{xgb_direction.upper()}** with {xgb_confidence:.0%} confidence.
+
+## Current Price Context
+- Price: ${current_price}
+- 24h change: {change_24h}%
+
+## Recent News & Macro Context
 {yahoo_summary}
 
-**Current Price Data:**
-- Current Price: ${price_data.get('current', 'N/A')}
-- 24h Change: {price_data.get('change_24h_pct', 'N/A')}%
-- 7d Change: {price_data.get('change_7d_pct', 'N/A')}%
+## User Risk Profile
+{risk_instruction}
 
 ## Your Task
+Does the macro/news context VALIDATE or CONTRADICT the XGBoost {xgb_direction.upper()} signal?
 
-1. Search the web for current {commodity} market news and trends (use your knowledge)
-2. Analyze the XGBoost technical indicators
-3. Consider the Yahoo Finance news sentiment
-4. Propose a trading position with clear reasoning
+Analyze:
+1. News sentiment alignment with the quantitative signal
+2. Any macro factors (geopolitics, supply shocks, rate decisions) that override the technical signal
+3. Your final validated recommendation, adjusted for the user's risk profile
 
-Respond in JSON format:
+Respond ONLY with valid JSON:
 {{
-    "argument": "Your detailed reasoning here...",
-    "sources": ["source1", "source2"],
+    "critique": "Your analysis of XGBoost signal vs macro context (2-3 sentences)",
+    "final_recommendation": "STRONG_BUY|BUY|HOLD|SELL|STRONG_SELL",
+    "final_direction": "buy|sell|hold",
+    "confidence": 0.0,
+    "reasoning": "One concise sentence explaining your final call",
     "position": {{
         "direction": "buy|sell|hold",
-        "confidence": 0-100,
-        "risk_level": "low|medium|high",
-        "time_horizon": "short|medium|long",
-        "key_factors": ["factor1", "factor2"]
-    }}
-}}"""
-        else:
-            prompt = f"""You are Gemma4, responding to DeepSeek's critique in round {round_num}.
-
-## Your Previous Position
-{xgboost_summary}
-
-## DeepSeek's Critique
-{previous_deepseek_critique}
-
-## Your Task
-
-Address DeepSeek's concerns and either:
-1. Defend your position with additional evidence (search web if needed)
-2. Revise your position based on valid critiques
-
-Respond in JSON format:
-{{
-    "argument": "Your rebuttal and reasoning...",
-    "sources": ["source1"],
-    "position": {{
-        "direction": "buy|sell|hold",
-        "confidence": 0-100,
-        "risk_level": "low|medium|high",
-        "time_horizon": "short|medium|long",
-        "key_factors": ["factor1"]
+        "confidence": 0,
+        "risk_level": "low|medium|high"
     }}
 }}"""
 
-        # Call Gemma4 via Ollama with Gemini MCP web search grounding
-        if self.gemini_mcp:
-            # Use web search enhanced generation
-            search_query = f"{commodity} commodity market news analysis latest"
-            gemma_result = self.ollama.generate_with_grounding(
-                prompt=prompt,
-                system="You are Gemma4, an expert commodity trading analyst. Use web search knowledge to inform your analysis. Always respond in valid JSON format.",
-                search_query=search_query,
-                gemini_mcp=self.gemini_mcp,
-            )
-            response = gemma_result["response"]
-            sources = gemma_result.get("sources", [])
-        else:
-            # Fallback to regular generation
-            response = self.ollama.generate(
-                prompt=prompt,
-                system="You are Gemma4, an expert commodity trading analyst. Always respond in valid JSON format.",
-            )
-            sources = []
+        import asyncio
+        loop = asyncio.get_event_loop()
 
-        # Parse JSON response
+        def _call() -> str:
+            if not self._api_key:
+                raise ValueError("DEEPSEEK_API_KEY not configured")
+            from openai import OpenAI
+            client = OpenAI(api_key=self._api_key, base_url=self._base_url)
+            resp = client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": _RISK_MANAGER_SYSTEM},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=self._max_tokens,
+                temperature=0.3,
+            )
+            return resp.choices[0].message.content or ""
+
         try:
-            result = json.loads(response)
-            # Add sources from web search if available
-            if sources:
-                result["sources"] = sources
+            raw = await loop.run_in_executor(None, _call)
+        except Exception as exc:
+            logger.error("DeepSeek reality check failed for %s: %s", commodity, exc)
+            return self._fallback_response(xgb_direction, xgb_confidence, str(exc))
+
+        # Parse JSON
+        try:
+            text = raw.strip()
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0].strip()
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0].strip()
+            return json.loads(text)
         except json.JSONDecodeError:
-            # Fallback if JSON parsing fails
-            result = {
-                "argument": response[:500],
-                "sources": sources if sources else [],
+            logger.warning("DeepSeek returned non-JSON for %s, using raw text", commodity)
+            return {
+                "critique": raw[:500],
+                "final_recommendation": xgb_direction.upper(),
+                "final_direction": xgb_direction,
+                "confidence": xgb_confidence,
+                "reasoning": "DeepSeek response parsed from free text.",
                 "position": {
-                    "direction": "hold",
-                    "confidence": 50,
+                    "direction": xgb_direction,
+                    "confidence": int(xgb_confidence * 100),
                     "risk_level": "medium",
-                    "time_horizon": "medium",
-                    "key_factors": ["uncertainty"],
                 },
             }
 
-        return result
-
-    async def _deepseek_turn(
-        self,
-        round_num: int,
-        commodity: str,
-        xgboost_summary: str,
-        yahoo_summary: str,
-        price_data: dict,
-        gemma4_proposal: dict,
-        previous_rounds: list[DebateRound],
-    ) -> dict:
-        """DeepSeek's turn - critique Gemma4's proposal."""
-
-        prompt = f"""You are DeepSeek, a critical trading analyst. Critique Gemma4's proposal for {commodity}.
-
-## Context
-
-**XGBoost Technical Analysis:**
-{xgboost_summary}
-
-**Yahoo Finance News:**
-{yahoo_summary}
-
-**Current Price:** ${price_data.get('current', 'N/A')} (24h: {price_data.get('change_24h_pct', 'N/A')}%)
-
-## Gemma4's Proposal (Round {round_num})
-
-**Argument:**
-{gemma4_proposal.get('argument', 'No argument provided')}
-
-**Position:**
-- Direction: {gemma4_proposal.get('position', {}).get('direction', 'unknown')}
-- Confidence: {gemma4_proposal.get('position', {}).get('confidence', 'unknown')}%
-- Risk Level: {gemma4_proposal.get('position', {}).get('risk_level', 'unknown')}
-
-## Your Task
-
-1. Critically analyze Gemma4's argument
-2. Identify any logical flaws, missing factors, or biases
-3. Provide your counter-argument
-4. State your own position
-
-Be thorough but constructive. Your goal is to reach the best trading decision through debate.
-
-Respond in JSON format:
-{{
-    "critique": "Your critique of Gemma4's argument...",
-    "counter_argument": "Your counter-argument and reasoning...",
-    "position": {{
-        "direction": "buy|sell|hold",
-        "confidence": 0-100,
-        "risk_level": "low|medium|high",
-        "critique": "Summary of your critique"
-    }}
-}}"""
-
-        # Call DeepSeek API
-        response = self.deepseek.generate(
-            prompt=prompt,
-            system="You are DeepSeek, a critical and thorough trading analyst. Your role is to challenge assumptions and ensure robust decision-making. Always respond in valid JSON format.",
-        )
-
-        # Parse JSON response
-        try:
-            result = json.loads(response)
-        except json.JSONDecodeError:
-            # Fallback
-            result = {
-                "critique": "Unable to parse response",
-                "counter_argument": response[:500],
-                "position": {
-                    "direction": "hold",
-                    "confidence": 50,
-                    "risk_level": "medium",
-                    "critique": "uncertainty",
-                },
-            }
-
-        return result
-
-    def _calculate_agreement(
-        self, gemma4_pos: dict, deepseek_pos: dict
-    ) -> float:
-        """Calculate agreement score between two positions."""
-        # Direction match (0 or 1)
-        direction_match = (
-            1.0
-            if gemma4_pos.get("direction") == deepseek_pos.get("direction")
-            else 0.0
-        )
-
-        # Confidence similarity (1 - normalized difference)
-        gemma4_conf = gemma4_pos.get("confidence", 50)
-        deepseek_conf = deepseek_pos.get("confidence", 50)
-        confidence_sim = 1.0 - abs(gemma4_conf - deepseek_conf) / 100.0
-
-        # Risk level match
-        risk_match = (
-            1.0
-            if gemma4_pos.get("risk_level") == deepseek_pos.get("risk_level")
-            else 0.0
-        )
-
-        # Weighted average
-        agreement = (direction_match * 0.5 + confidence_sim * 0.3 + risk_match * 0.2)
-
-        return agreement
-
-    async def _generate_final_recommendation(
-        self,
-        commodity: str,
-        debate_history: list[DebateRound],
-        xgboost_result: dict,
-        yahoo_summary: str,
-    ) -> dict:
-        """Generate final trading recommendation after debate."""
-
-        # Get last positions
-        last_round = debate_history[-1] if debate_history else None
-
-        if not last_round:
-            return {
-                "recommendation": "HOLD",
-                "confidence": 0.5,
-                "direction": "hold",
-                "risk_level": "medium",
-                "reasoning": "No debate occurred",
-            }
-
-        # If consensus reached, use agreed position
-        if last_round.agreement_score >= self.agreement_threshold:
-            direction = last_round.gemma4_position.get("direction", "hold")
-            confidence = (
-                last_round.gemma4_position.get("confidence", 50)
-                + last_round.deepseek_position.get("confidence", 50)
-            ) / 200.0  # Average and normalize
-
-            return {
-                "recommendation": direction.upper(),
-                "confidence": confidence,
+    def _fallback_response(self, direction: str, confidence: float, error: str) -> dict:
+        return {
+            "critique": f"DeepSeek unavailable ({error}). Falling back to XGBoost signal only.",
+            "final_recommendation": direction.upper(),
+            "final_direction": direction,
+            "confidence": confidence * 0.7,  # Lower confidence without validation
+            "reasoning": "XGBoost signal used without macro validation (DeepSeek unavailable).",
+            "position": {
                 "direction": direction,
-                "risk_level": last_round.gemma4_position.get("risk_level", "medium"),
-                "reasoning": f"Consensus reached with {last_round.agreement_score:.0%} agreement. Both agents agree on {direction}.",
-            }
+                "confidence": int(confidence * 70),
+                "risk_level": "high",  # Higher risk without macro check
+            },
+        }
 
-        # No consensus - synthesize both views
-        prompt = f"""Synthesize the following debate into a final trading recommendation for {commodity}.
-
-## Debate Summary
-
-**XGBoost Analysis:**
-{self._format_xgboost_result(xgboost_result)}
-
-**Yahoo News:**
-{yahoo_summary}
-
-**Final Positions:**
-- Gemma4: {last_round.gemma4_position.get('direction', 'unknown')} ({last_round.gemma4_position.get('confidence', 0)}% confidence)
-- DeepSeek: {last_round.deepseek_position.get('direction', 'unknown')} ({last_round.deepseek_position.get('confidence', 0)}% confidence)
-
-## Your Task
-
-Provide a balanced final recommendation considering both perspectives.
-
-Respond in JSON format:
-{{
-    "recommendation": "STRONG_BUY|BUY|HOLD|SELL|STRONG_SELL",
-    "confidence": 0-1,
-    "direction": "buy|sell|hold",
-    "risk_level": "low|medium|high",
-    "reasoning": "Detailed explanation..."
-}}"""
-
-        response = self.deepseek.generate(
-            prompt=prompt,
-            system="You are a senior trading strategist synthesizing multiple AI analyses into a final recommendation.",
-        )
-
-        try:
-            result = json.loads(response)
-        except json.JSONDecodeError:
-            # Fallback synthesis
-            gemma4_dir = last_round.gemma4_position.get("direction", "hold")
-            deepseek_dir = last_round.deepseek_position.get("direction", "hold")
-
-            if gemma4_dir == deepseek_dir:
-                direction = gemma4_dir
-                confidence = 0.7
-            else:
-                direction = "hold"
-                confidence = 0.5
-
-            result = {
-                "recommendation": direction.upper(),
-                "confidence": confidence,
-                "direction": direction,
-                "risk_level": "medium",
-                "reasoning": f"No consensus reached. Gemma4: {gemma4_dir}, DeepSeek: {deepseek_dir}. Defaulting to cautious position.",
-            }
-
-        return result
+    def _xgboost_to_direction(self, result: dict) -> str:
+        prediction = float(result.get("prediction", 0))
+        if prediction > 0.005:
+            return "buy"
+        elif prediction < -0.005:
+            return "sell"
+        return "hold"
 
     def _summarize_yahoo_news(self, news: list[dict]) -> str:
-        """Summarize Yahoo Finance news for the prompt."""
         if not news:
             return "No recent news available."
-
-        summary_parts = []
-        total_sentiment = 0
-
+        parts = []
+        total_sentiment = 0.0
         for i, article in enumerate(news[:5], 1):
-            title = article.get("title", "")
             sentiment = article.get("sentiment", "neutral")
-            score = article.get("sentiment_score", 0)
+            score = float(article.get("sentiment_score", 0))
             total_sentiment += score
-
-            summary_parts.append(f"{i}. [{sentiment.upper()}] {title}")
-
-        avg_sentiment = total_sentiment / len(news) if news else 0
-
-        overall = "positive" if avg_sentiment > 0.05 else "negative" if avg_sentiment < -0.05 else "neutral"
-
-        return f"""Overall Sentiment: {overall.upper()} (score: {avg_sentiment:.3f})
-Articles: {len(news)}
-
-Top Headlines:
-{chr(10).join(summary_parts)}"""
+            parts.append(f"{i}. [{sentiment.upper()}] {article.get('title', '')}")
+        avg = total_sentiment / len(news) if news else 0.0
+        overall = "positive" if avg > 0.05 else "negative" if avg < -0.05 else "neutral"
+        return (
+            f"Overall Sentiment: {overall.upper()} (score: {avg:.3f}) | {len(news)} articles\n"
+            + "\n".join(parts)
+        )
 
     def _format_xgboost_result(self, result: dict) -> str:
-        """Format XGBoost result for prompts."""
-        prediction = result.get("prediction", 0)
-        confidence = result.get("confidence", 0)
+        prediction = float(result.get("prediction", 0))
+        confidence = float(result.get("confidence", 0))
         reasoning = result.get("reasoning", "No reasoning provided")
-
         top_features = result.get("top_features", [])[:5]
-        features_str = "\n".join([
+        features_str = "\n".join(
             f"  - {f.get('name', 'unknown')}: {f.get('value', 0):.4f} ({f.get('impact', 'neutral')})"
             for f in top_features
-        ])
-
-        return f"""Prediction: {prediction:+.2%}
-Confidence: {confidence:.0%}
-
-Reasoning: {reasoning}
-
-Top Features:
-{features_str}"""
+        )
+        return (
+            f"Prediction: {prediction:+.2%}\n"
+            f"Confidence: {confidence:.0%}\n"
+            f"Reasoning: {reasoning}\n"
+            f"Top Features:\n{features_str}"
+        )

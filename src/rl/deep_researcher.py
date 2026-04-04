@@ -14,15 +14,15 @@ from qdrant_client.models import PointStruct
 
 from src.data.config import config
 from src.data.vector_schema import LLM_PREDICTIONS_COLLECTION
-from src.rl.ollama_client import OllamaClient
+from src.data.clients.deepseek_client import DeepSeekClient
 
 
 class DeepResearcher:
-    """Autonomous research agent using Gemma4 for deep analysis."""
+    """Autonomous research agent using DeepSeek for deep analysis."""
 
     def __init__(self) -> None:
         """Initialize the deep researcher."""
-        self.ollama = OllamaClient()
+        self._deepseek = DeepSeekClient()
         self.qdrant = QdrantClient(url=config.qdrant_url)
         self.collection_name = LLM_PREDICTIONS_COLLECTION.name
         self.research_dir = tempfile.mkdtemp(prefix="research_")
@@ -49,7 +49,7 @@ class DeepResearcher:
         print(f"  Found {len(failed)} failed predictions to analyze")
 
         # Send to Gemma4 for analysis
-        analysis = self.ollama.analyze_patterns(
+        analysis = self._deepseek.analyze_patterns(
             patterns=failed,
             question="What common patterns exist in these failed predictions? "
             "What factors might have caused the failures?",
@@ -58,7 +58,7 @@ class DeepResearcher:
         # Generate hypotheses
         hypotheses = []
         for failure in failed[:5]:  # Top 5 failures
-            hypothesis = self.ollama.generate_hypothesis(
+            hypothesis = self._deepseek.generate_hypothesis(
                 {
                     "prediction": failure.get("reasoning", "")[:500],
                     "expected": failure.get("predicted_direction", "unknown"),
@@ -69,7 +69,7 @@ class DeepResearcher:
             hypotheses.append(hypothesis)
 
         # Write script to test hypotheses
-        script = self.ollama.write_analysis_script(
+        script = self._deepseek.write_analysis_script(
             task_description="Analyze failed predictions to identify common failure modes. "
             "Calculate correlation between prediction confidence and actual accuracy. "
             "Identify which features are most predictive of failure.",
@@ -127,7 +127,7 @@ class DeepResearcher:
         print(f"  Analyzing {len(patterns)} patterns...")
 
         # Ask Gemma4 to find correlations
-        analysis = self.ollama.analyze_patterns(
+        analysis = self._deepseek.analyze_patterns(
             patterns=patterns,
             question="Find non-obvious correlations in this price data. "
             "Consider: time of day effects, day of week patterns, "
@@ -136,7 +136,7 @@ class DeepResearcher:
         )
 
         # Generate script to validate findings
-        script = self.ollama.write_analysis_script(
+        script = self._deepseek.write_analysis_script(
             task_description=f"Validate pattern hypotheses for {commodity}. "
             "Calculate feature importance using XGBoost. "
             "Identify which engineered features have predictive power.",
@@ -201,7 +201,7 @@ class DeepResearcher:
         context = self._build_context(prediction)
 
         # Perform deep reasoning
-        result = self.ollama.deep_reasoning(
+        result = self._deepseek.deep_reasoning(
             context=context,
             question=f"Should we trust this prediction? {prediction.get('reasoning', '')}",
             confidence_threshold=0.6,
@@ -456,7 +456,10 @@ class DeepResearcher:
 
     def check_health(self) -> dict[str, Any]:
         """Check health of all components."""
-        ollama_health = self.ollama.check_health()
+        deepseek_health = {
+            "status": "configured" if self._deepseek.client else "unconfigured",
+            "model": self._deepseek.model,
+        }
 
         try:
             collections = self.qdrant.get_collections()
@@ -468,7 +471,7 @@ class DeepResearcher:
             qdrant_health = {"status": "error", "error": str(e)}
 
         return {
-            "ollama": ollama_health,
+            "deepseek": deepseek_health,
             "qdrant": qdrant_health,
             "research_dir": self.research_dir,
         }

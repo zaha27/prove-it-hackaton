@@ -1,7 +1,7 @@
 """
 ui/panel_ai.py — AI insight panel, clean Perplexity style, no emoji.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout, QComboBox
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 
@@ -64,7 +64,8 @@ class PanelAI(QWidget):
         row.setSpacing(6)
 
         for text, fg, bg in [
-            ("Chain-of-Thought", "#93C5FD", "rgba(147,197,253,0.08)"),
+            ("XGBoost Quant",     "#93C5FD", "rgba(147,197,253,0.08)"),
+            ("DeepSeek Validator","#4ADE80", "rgba(74,222,128,0.07)"),
         ]:
             tag = QLabel(text)
             tag.setStyleSheet(
@@ -74,6 +75,30 @@ class PanelAI(QWidget):
             row.addWidget(tag)
 
         row.addStretch()
+
+        # Risk profile label
+        risk_label = QLabel("Risk:")
+        risk_label.setStyleSheet("color:#6B7280; font-size:10px; font-weight:500;")
+        row.addWidget(risk_label)
+
+        # Risk selector
+        self._risk_combo = QComboBox()
+        self._risk_combo.addItems(["Conservative", "Balanced", "Aggressive"])
+        self._risk_combo.setCurrentIndex(1)  # Balanced default
+        self._risk_combo.setFixedHeight(20)
+        self._risk_combo.setStyleSheet(
+            "QComboBox {"
+            "  background:#111111; color:#F1F5F9; border:1px solid #1C1C1C;"
+            "  border-radius:4px; font-size:10px; padding:0 8px; min-width:88px;"
+            "}"
+            "QComboBox::drop-down { border:none; width:16px; }"
+            "QComboBox::down-arrow { width:8px; height:8px; }"
+            "QComboBox QAbstractItemView {"
+            "  background:#111111; color:#F1F5F9; border:1px solid #1C1C1C;"
+            "  selection-background-color:#1E3A5F; outline:none;"
+            "}"
+        )
+        row.addWidget(self._risk_combo)
         return bar
 
     def _build_text_area(self) -> QTextEdit:
@@ -96,12 +121,16 @@ class PanelAI(QWidget):
 
     # Public contract ──────────────────────────────────────────────────────────
 
+    def get_risk_profile(self) -> str:
+        """Return the currently selected risk profile: Conservative, Balanced, or Aggressive."""
+        return self._risk_combo.currentText()
+
     def update_insight(self, insight_text: str) -> None:
         """Called by Backend/Bridge with the LLM response (plain text or markdown)."""
         self.set_text(insight_text)
 
     def update_consensus(self, consensus_result: dict) -> None:
-        """Display DeepSeek-Gemma4 consensus result with debate history.
+        """Display XGBoost + DeepSeek neuro-symbolic analysis result.
 
         Args:
             consensus_result: Dict with debate rounds and final recommendation
@@ -117,7 +146,7 @@ class PanelAI(QWidget):
         lines.append("")
 
         # Source attribution badge
-        lines.append("> **Powered by:** Gemma4 (Ollama) + DeepSeek + Gemini MCP + XGBoost")
+        lines.append("> **Powered by:** XGBoost Quant + DeepSeek Validator")
         lines.append("")
 
         # Consensus status
@@ -174,17 +203,17 @@ class PanelAI(QWidget):
             for i, round_data in enumerate(debate_history, 1):
                 lines.append(f"### Round {i}")
 
-                # Gemma4 position
-                gemma4_pos = round_data.get("gemma4_position", {})
-                gemma4_dir = gemma4_pos.get("direction", "unknown")
-                gemma4_conf = gemma4_pos.get("confidence", 0)
+                # XGBoost Quant position
+                quant_pos = round_data.get("gemma4_position", {})
+                quant_dir = quant_pos.get("direction", "unknown")
+                quant_conf = quant_pos.get("confidence", 0)
 
-                lines.append(f"**Gemma4:** {gemma4_dir.upper()} ({gemma4_conf}% confidence)")
+                lines.append(f"**XGBoost Quant:** {quant_dir.upper()} ({quant_conf}% confidence)")
 
-                # Gemma4 argument
-                gemma4_arg = round_data.get("gemma4_argument", "")
-                if gemma4_arg:
-                    lines.append(f"> {gemma4_arg[:200]}...")
+                # Quant argument
+                quant_arg = round_data.get("gemma4_argument", "")
+                if quant_arg:
+                    lines.append(f"> {quant_arg[:200]}...")
 
                 # Sources
                 sources = round_data.get("gemma4_sources", [])
@@ -262,10 +291,10 @@ class PanelAI(QWidget):
 
             <div style="margin: 30px 0;">
                 <div style="display: inline-block; animation: pulse 1.5s infinite;">
-                    <span style="font-size: 14px; color: #93C5FD; font-family: Menlo, monospace;">Gemma4</span>
+                    <span style="font-size: 14px; color: #93C5FD; font-family: Menlo, monospace;">XGBoost</span>
                 </div>
                 <div style="display: inline-block; margin: 0 20px; animation: bounce 1s infinite;">
-                    <span style="font-size: 32px; color: #6B7280;">⟷</span>
+                    <span style="font-size: 32px; color: #6B7280;">&#8594;</span>
                 </div>
                 <div style="display: inline-block; animation: pulse 1.5s infinite 0.5s;">
                     <span style="font-size: 14px; color: #4ADE80; font-family: Menlo, monospace;">DeepSeek</span>
@@ -274,19 +303,16 @@ class PanelAI(QWidget):
 
             <div style="margin-top: 30px; font-family: Menlo, monospace; font-size: 13px;">
                 <p style="color: #6B7280; margin: 8px 0;">
-                    <span style="color: #4ADE80;">●</span> Gemma4 (Ollama) — Searching web & reasoning...
+                    <span style="color: #93C5FD;">&#9679;</span> XGBoost Quant — Computing technical signal...
                 </p>
                 <p style="color: #6B7280; margin: 8px 0;">
-                    <span style="color: #93C5FD;">●</span> DeepSeek — Critiquing & validating...
-                </p>
-                <p style="color: #6B7280; margin: 8px 0;">
-                    <span style="color: #F59E0B;">●</span> XGBoost — Technical analysis...
+                    <span style="color: #4ADE80;">&#9679;</span> DeepSeek Validator — Running macro reality check...
                 </p>
             </div>
 
             <div style="margin-top: 40px; color: #374151; font-size: 12px;">
-                Multi-Agent Consensus Pipeline<br/>
-                <span style="color: #6B7280;">Debate loop until agreement reached</span>
+                Neuro-Symbolic Pipeline<br/>
+                <span style="color: #6B7280;">Quant signal validated against macro context</span>
             </div>
         </div>
 
