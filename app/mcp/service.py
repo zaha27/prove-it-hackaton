@@ -220,18 +220,14 @@ class MCPService:
     async def get_consensus(self, request: ConsensusRequest) -> ConsensusResponse:
         """
         Run DeepSeek-Gemma4 consensus debate for trading recommendation.
-
-        Args:
-            request: ConsensusRequest with commodity and parameters
-
-        Returns:
-            ConsensusResponse with debate history and final recommendation
         """
         from src.ml.consensus_engine import ConsensusEngine
         from src.ml.xgboost_trainer import XGBoostTrainer
         from src.features.xgboost_features import XGBoostFeatureEngineer
         from src.data.clients.yfinance_client import YFinanceClient
         from src.data.services.price_service import PriceService
+        import pandas as pd
+        import math
 
         commodity = request.commodity.upper()
 
@@ -251,12 +247,12 @@ class MCPService:
             xgb_trainer = XGBoostTrainer()
             feature_engineer = XGBoostFeatureEngineer()
 
-            # Fetch OHLCV data for features
-            ohlcv = yf_client.fetch_ohlcv(commodity, period="60d")
+            # Fetch OHLCV data for features (1y necessary for moving averages)
+            ohlcv = yf_client.fetch_ohlcv(commodity, period="1y")
             df = ohlcv.to_dataframe()
             if df.empty:
                 raise ValueError(
-                    f"No OHLCV data available for {commodity} (period: 60d). "
+                    f"No OHLCV data available for {commodity}. "
                     "Verify the symbol is valid and market data is accessible."
                 )
 
@@ -265,13 +261,19 @@ class MCPService:
             if df_features.empty:
                 raise ValueError(f"No engineered features available for {commodity}")
 
-            # Get current features for prediction
-            current_features = df_features.iloc[-1].to_dict()
+            # Get current features for prediction and SANITIZE NaN values
+            raw_features = df_features.iloc[-1].to_dict()
+            current_features = {}
+            for k, v in raw_features.items():
+                if isinstance(v, (int, float)) or pd.api.types.is_numeric_dtype(type(v)):
+                    current_features[k] = 0.0 if pd.isna(v) or math.isnan(float(v)) else float(v)
+                else:
+                    current_features[k] = 0.0
 
             # Train and predict
             xgb_result = xgb_trainer.predict_with_explanation(commodity, current_features)
 
-            # Run consensus debate with Gemini MCP for web search
+            # Run consensus debate with DeepSeek
             consensus_engine = ConsensusEngine(
                 max_rounds=request.max_rounds,
                 agreement_threshold=request.agreement_threshold,
@@ -294,7 +296,7 @@ class MCPService:
                     {
                         "title": n.title,
                         "sentiment": n.sentiment,
-                        "sentiment_score": n.sentiment_score,
+                        "sentiment_score": float(n.sentiment_score),
                         "source": n.source,
                     }
                     for n in news
@@ -311,7 +313,7 @@ class MCPService:
                     deepseek_critique=r.deepseek_critique,
                     deepseek_counter=r.deepseek_counter,
                     deepseek_position=r.deepseek_position,
-                    agreement_score=r.agreement_score,
+                    agreement_score=float(r.agreement_score),
                 )
                 for r in result.debate_history
             ]
@@ -321,7 +323,7 @@ class MCPService:
                 consensus_reached=result.consensus_reached,
                 rounds_conducted=result.rounds_conducted,
                 final_recommendation=result.final_recommendation,
-                confidence=result.confidence,
+                confidence=float(result.confidence),
                 direction=result.direction,
                 risk_level=result.risk_level,
                 debate_history=debate_rounds,
@@ -333,11 +335,12 @@ class MCPService:
                 fetched_at=datetime.utcnow(),
             )
         except Exception as exc:
+            import traceback
+            error_details = traceback.format_exc()
+            self._logger.error(f"CRITICAL CONSENSUS ERROR for {commodity}:\n{error_details}")
+            
             error_id = f"{commodity}-{int(datetime.utcnow().timestamp())}"
-            self._logger.exception(
-                "Consensus generation failed for %s (error_id=%s)", commodity, error_id
-            )
-            # Return a safe fallback payload so API stays responsive instead of 500.
+            # Return a safe fallback payload
             return ConsensusResponse(
                 commodity=commodity,
                 consensus_reached=False,
@@ -351,7 +354,7 @@ class MCPService:
                 yahoo_news_summary="",
                 final_reasoning=(
                     "Consensus temporarily unavailable due to an internal processing "
-                    f"error (ref: {error_id}). Please retry shortly."
+                    f"error (ref: {error_id}). Check backend logs."
                 ),
                 gemma4_final_position={},
                 deepseek_final_position={},

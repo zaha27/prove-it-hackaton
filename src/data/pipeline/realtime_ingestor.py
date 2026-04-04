@@ -101,7 +101,7 @@ class RealtimeIngestor:
         # Generate unique ID
         timestamp = datetime.utcnow()
         content = f"{commodity}:live:{timestamp.isoformat()}"
-        pattern_id = str(uuid.uuid5(uuid.NAMESPACE_OID, content))
+        pattern_id = int(hashlib.md5(content.encode()).hexdigest(), 16) & ((1 << 63) - 1)
 
         # Determine volatility regime
         if volatility > 2:

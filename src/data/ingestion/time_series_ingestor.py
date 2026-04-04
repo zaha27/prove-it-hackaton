@@ -28,11 +28,10 @@ class TimeSeriesIngestor:
 
     def _generate_pattern_id(
         self, commodity: str, date: str, window_size: int
-    ) -> str:
-        """Generate unique ID for a price pattern."""
+    ) -> int:
+        """Generate unique numerical ID for a price pattern."""
         content = f"{commodity}:{date}:{window_size}"
-        # CORECȚIE QDRANT UUID
-        return str(uuid.uuid5(uuid.NAMESPACE_OID, content))
+        return int(hashlib.md5(content.encode()).hexdigest(), 16) & ((1 << 63) - 1)
 
     def _create_pattern_embedding(
         self, prices: list[float], volumes: list[int]

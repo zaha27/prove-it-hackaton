@@ -49,12 +49,18 @@ class PipelineOrchestrator:
         """
         print("[Orchestrator] Initializing pipeline...")
 
-        # Check Qdrant connection
+        # Check Qdrant connection and auto-initialize schema
         try:
             from qdrant_client import QdrantClient
             client = QdrantClient(url=config.qdrant_url)
             client.get_collections()
             print("[Orchestrator] Qdrant connection: OK")
+            
+            # === REPARAȚIA ESTE AICI: Creăm colecțiile dacă lipsesc ===
+            from src.data.vector_schema import init_vector_schema
+            print("[Orchestrator] Asigurare structură colecții în Qdrant...")
+            init_vector_schema()
+            
         except Exception as e:
             raise ConnectionError(f"Cannot connect to Qdrant: {e}") from e
 

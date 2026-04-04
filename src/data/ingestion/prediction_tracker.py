@@ -40,11 +40,10 @@ class PredictionTracker:
 
     def _generate_prediction_id(
         self, commodity: str, timestamp: datetime
-    ) -> str:
-        """Generate unique ID for a prediction."""
+    ) -> int:
+        """Generate unique numerical ID for a prediction."""
         content = f"{commodity}:{timestamp.isoformat()}"
-        # CORECȚIE QDRANT UUID
-        return str(uuid.uuid5(uuid.NAMESPACE_OID, content))
+        return int(hashlib.md5(content.encode()).hexdigest(), 16) & ((1 << 63) - 1)
 
     def _embed_reasoning(self, reasoning: str) -> list[float]:
         """Create embedding from reasoning text.

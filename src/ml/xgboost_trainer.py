@@ -317,15 +317,7 @@ class XGBoostTrainer:
     def calculate_confidence(
         self, commodity: str, features: dict[str, float]
     ) -> dict[str, float]:
-        """Calculate prediction confidence metrics.
-
-        Args:
-            commodity: Commodity symbol
-            features: Feature dictionary
-
-        Returns:
-            Dictionary with confidence metrics
-        """
+        """Calculate prediction confidence metrics."""
         if commodity not in self.models:
             self.train_model(commodity)
 
@@ -361,12 +353,45 @@ class XGBoostTrainer:
             0.2 * min(1.0, shap_importance / 0.1)  # SHAP importance
         )
 
+        # FORCE PYTHON NATIVE FLOATS TO PREVENT FASTAPI/PYDANTIC CRASH
         return {
-            "confidence": confidence,
-            "feature_coverage": feature_coverage,
-            "top_feature_coverage": top_feature_coverage,
-            "shap_importance": shap_importance,
+            "confidence": float(confidence),
+            "feature_coverage": float(feature_coverage),
+            "top_feature_coverage": float(top_feature_coverage),
+            "shap_importance": float(shap_importance),
+            "prediction": float(prediction),
+        }
+
+    def predict_with_explanation(
+        self, commodity: str, features: dict[str, float]
+    ) -> dict[str, Any]:
+        """Get prediction with full explanation."""
+        import math
+        
+        # Get prediction and force standard python float
+        prediction = float(self.predict(commodity, features))
+        if math.isnan(prediction):
+            prediction = 0.0
+
+        # Get confidence metrics (already converted to floats above)
+        confidence_metrics = self.calculate_confidence(commodity, features)
+        confidence = confidence_metrics.get("confidence", 0.5)
+        if math.isnan(confidence):
+            confidence = 0.5
+
+        # Get explanation
+        explanation = self.explain_prediction(commodity, features, top_n=5)
+
+        return {
+            "commodity": commodity,
             "prediction": prediction,
+            "prediction_pct": float(prediction * 100),
+            "confidence": confidence,
+            "confidence_metrics": confidence_metrics,
+            "top_features": explanation["top_features"],
+            "reasoning": explanation["reasoning"],
+            "positive_factors": explanation["positive_factors"],
+            "negative_factors": explanation["negative_factors"],
         }
 
     def list_available_models(self) -> list[str]:
@@ -377,52 +402,12 @@ class XGBoostTrainer:
         """
         return list(self.models.keys())
 
-    def predict_with_explanation(
-        self, commodity: str, features: dict[str, float]
-    ) -> dict[str, Any]:
-        """Get prediction with full explanation.
-
-        Args:
-            commodity: Commodity symbol
-            features: Feature dictionary
-
-        Returns:
-            Dictionary with prediction, confidence, and explanation
-        """
-        # Get prediction
-        prediction = self.predict(commodity, features)
-
-        # Get confidence metrics
-        confidence_metrics = self.calculate_confidence(commodity, features)
-
-        # Get explanation
-        explanation = self.explain_prediction(commodity, features, top_n=5)
-
-        return {
-            "commodity": commodity,
-            "prediction": prediction,
-            "prediction_pct": prediction * 100,
-            "confidence": confidence_metrics["confidence"],
-            "confidence_metrics": confidence_metrics,
-            "top_features": explanation["top_features"],
-            "reasoning": explanation["reasoning"],
-            "positive_factors": explanation["positive_factors"],
-            "negative_factors": explanation["negative_factors"],
-        }
 
     def explain_prediction(
         self, commodity: str, features: dict[str, float], top_n: int = 3
     ) -> dict[str, Any]:
-        """Explain XGBoost prediction with top correlated features.
-
-        Args:
-            commodity: Commodity symbol
-            features: Current feature values
-            top_n: Number of top features to explain
-
-        Returns:
-            Dictionary with prediction explanation
-        """
+        """Explain XGBoost prediction with top correlated features."""
+        import math
         from src.ml.feature_explainer import (
             explain_feature_value,
             get_feature_impact,
@@ -433,7 +418,16 @@ class XGBoostTrainer:
             self.train_model(commodity)
 
         model = self.models[commodity]
-        prediction = self.predict(commodity, features)
+        
+        # Calculate prediction and confidence safely
+        prediction = float(self.predict(commodity, features))
+        if math.isnan(prediction):
+            prediction = 0.0
+            
+        confidence_metrics = self.calculate_confidence(commodity, features)
+        xgb_confidence = float(confidence_metrics.get("confidence", 0.5))
+        if math.isnan(xgb_confidence):
+            xgb_confidence = 0.5
 
         # Get top features by importance
         top_features = self.get_feature_importance(commodity, top_n=top_n)
@@ -441,16 +435,20 @@ class XGBoostTrainer:
         # Build explanation for each top feature
         explained_features = []
         for feat_name, importance in top_features.items():
-            feat_value = features.get(feat_name, 0.0)
+            raw_val = features.get(feat_name, 0.0)
+            # PROTECȚIE ANTI-NaN pentru JSON
+            feat_value = 0.0 if pd.isna(raw_val) or math.isnan(float(raw_val)) else float(raw_val)
+            imp_val = 0.0 if pd.isna(importance) or math.isnan(float(importance)) else float(importance)
+
             explanation = explain_feature_value(feat_name, feat_value)
-            impact = get_feature_impact(feat_name, feat_value, importance)
+            impact = get_feature_impact(feat_name, feat_value, imp_val)
 
             explained_features.append(
                 {
                     "name": explanation["name"],
                     "technical_name": feat_name,
                     "value": feat_value,
-                    "importance": importance,
+                    "importance": imp_val,
                     "impact": impact,
                     "correlation": explanation["interpretation"],
                     "description": explanation["description"],
@@ -491,6 +489,7 @@ class XGBoostTrainer:
         return {
             "prediction": prediction,
             "prediction_pct": prediction * 100,
+            "confidence": xgb_confidence,  # <-- ADAUGAT ÎNAPOI!
             "top_features": explained_features,
             "reasoning": reasoning,
             "positive_factors": len(positive_factors),
