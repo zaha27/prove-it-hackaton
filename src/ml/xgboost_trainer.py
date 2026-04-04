@@ -242,7 +242,9 @@ class XGBoostTrainer:
 
         model_path = self._get_model_path(commodity)
         if not model_path.exists():
-            raise FileNotFoundError(f"Model file not found for {commodity}: {model_path}")
+            raise FileNotFoundError(
+                f"Model file not found for {commodity}: {model_path.name}"
+            )
 
         with open(model_path, "rb") as f:
             model = pickle.load(f)
