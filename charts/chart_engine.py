@@ -43,8 +43,6 @@ def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
                 text = text.split(" ", 1)[0]
             return text
 
-        _ = indicator
-
         dates = ohlcv["dates"]
         opens = ohlcv["open"]
         highs = ohlcv["high"]
@@ -92,14 +90,12 @@ body { margin: 0; padding: 0; background-color: #080808; overflow: hidden; }
 </head>
 <body>
   <div id="chart"></div>
-  <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
   <script>
     const chart = LightweightCharts.createChart(document.getElementById('chart'), {
       layout: { background: { type: 'solid', color: '#0D0D0D' }, textColor: '#F1F5F9' },
       grid: { vertLines: { color: '#1C1C1C' }, horzLines: { color: '#1C1C1C' } },
-      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-      rightPriceScale: { borderColor: '#1C1C1C' },
-      timeScale: { borderColor: '#1C1C1C', timeVisible: true }
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
     });
 
     const candleSeries = chart.addCandlestickSeries({
@@ -116,8 +112,8 @@ body { margin: 0; padding: 0; background-color: #080808; overflow: hidden; }
       scaleMargins: { top: 0.75, bottom: 0 }
     });
 
-    const candlesData = __DATA_CANDLES__;
-    const volumeData = __DATA_VOLUME__;
+    const candlesData = DATA_CANDLES;
+    const volumeData = DATA_VOLUME;
 
     candleSeries.setData(candlesData);
     volumeSeries.setData(volumeData);
@@ -130,7 +126,7 @@ body { margin: 0; padding: 0; background-color: #080808; overflow: hidden; }
 </body>
 </html>
 """
-        return html_template.replace("__DATA_CANDLES__", candles_json).replace("__DATA_VOLUME__", volume_json)
+        return html_template.replace("DATA_CANDLES", candles_json).replace("DATA_VOLUME", volume_json)
 
     except Exception as exc:
         logger.error("chart_engine error: %s", exc)
