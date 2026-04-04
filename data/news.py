@@ -2,6 +2,10 @@
 data/news.py — News fetching via Yahoo Finance only.
 """
 import logging
+from datetime import datetime
+from urllib.parse import urlparse
+
+import requests
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 logger = logging.getLogger(__name__)
@@ -18,6 +22,105 @@ _SYMBOL_MAP = {
     "ZW=F": "ZW=F",
     "HG=F": "HG=F",
 }
+
+_GDELT_BASE_URL = "https://api.gdeltproject.org/api/v2/context/context"
+_GDELT_QUERY = "(economy OR conflict OR energy) domainis:reuters.com"
+_COUNTRY_KEYWORDS_ISO3 = {
+    "iran": "IRN",
+    "ukraine": "UKR",
+    "usa": "USA",
+    "china": "CHN",
+}
+
+
+def _extract_source(article: dict) -> str:
+    source = article.get("source") or article.get("domain")
+    if source:
+        return str(source)
+
+    url = article.get("url", "")
+    try:
+        netloc = urlparse(url).netloc.lower()
+        if netloc.startswith("www."):
+            netloc = netloc[4:]
+        return netloc or "Unknown"
+    except Exception:
+        return "Unknown"
+
+
+def _normalize_timestamp(article: dict) -> str:
+    raw_timestamp = (
+        article.get("seendate")
+        or article.get("date")
+        or article.get("published")
+        or article.get("timestamp")
+        or ""
+    )
+    if not raw_timestamp:
+        return ""
+
+    raw_str = str(raw_timestamp).strip()
+    try:
+        if len(raw_str) == 14 and raw_str.isdigit():
+            dt = datetime.strptime(raw_str, "%Y%m%d%H%M%S")
+            return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        if " " in raw_str and "T" not in raw_str:
+            return raw_str.replace(" ", "T") + "Z"
+        return raw_str
+    except Exception:
+        return raw_str
+
+
+def _infer_country_iso3(title: str) -> str | None:
+    lowered = (title or "").lower()
+    for keyword, iso3 in _COUNTRY_KEYWORDS_ISO3.items():
+        if keyword in lowered:
+            return iso3
+    return None
+
+
+def fetch_real_world_news(limit: int = 50) -> list[dict]:
+    """
+    Fetch real-world macro news using GDELT Contextual Search API.
+
+    Returns a list of dicts compatible with NewsCard UI.
+    """
+    safe_limit = max(1, min(int(limit), 50))
+    params = {
+        "query": _GDELT_QUERY,
+        "mode": "artlist",
+        "maxresults": safe_limit,
+        "format": "json",
+    }
+
+    try:
+        resp = requests.get(_GDELT_BASE_URL, params=params, timeout=12)
+        resp.raise_for_status()
+        payload = resp.json()
+        articles = payload.get("articles", []) if isinstance(payload, dict) else []
+    except Exception as exc:
+        logger.error("Failed to fetch GDELT macro news: %s", exc)
+        return []
+
+    result: list[dict] = []
+    for article in articles[:safe_limit]:
+        title = str(article.get("title") or "").strip()
+        url = str(article.get("url") or "").strip()
+
+        mapped = {
+            "title": title,
+            "source": _extract_source(article),
+            "timestamp": _normalize_timestamp(article),
+            "url": url,
+            "sentiment": "neutral",
+            "summary": "",
+        }
+        country_iso3 = _infer_country_iso3(title)
+        if country_iso3:
+            mapped["country_iso3"] = country_iso3
+        result.append(mapped)
+
+    return result
 
 
 def get_news(symbol: str, limit: int = 10) -> list[dict]:
