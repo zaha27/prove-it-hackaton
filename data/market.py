@@ -3,37 +3,47 @@ data/market.py — Live market data via yfinance.
 # TODO: Dev2 — implement live data fetching and error handling
 """
 import logging
-from datetime import datetime, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
-DAILY_INTERVAL_THRESHOLD_DAYS = 90
+
+_RANGE_MAP = {
+    "6M": "6mo",
+    "1Y": "1y",
+    "5Y": "5y",
+    "Max": "max",
+}
+
+_INTERVAL_MAP = {
+    "1D": "1d",
+    "1W": "1wk",
+    "1M": "1mo",
+}
+
+_VALID_PERIODS = {"6mo", "1y", "5y", "max"}
+_VALID_INTERVALS = {"1d", "1wk", "1mo"}
 
 
-def get_price_data(symbol: str, period_days: int = 30) -> Optional[dict]:
+def get_price_data(symbol: str, range_str: str = "1Y", interval_str: str = "1D") -> Optional[dict]:
     """
-    Fetch OHLCV data for the last `period_days` days using yfinance.
+    Fetch OHLCV data using yfinance period + interval.
 
     Returns a dict with keys: symbol, currency, dates, open, high, low, close, volume.
     Returns None on failure.
-
-    # TODO: Dev2 — add period_days → yfinance interval mapping (1W=1d, 1M=1d, 3M=1d, 6M=1wk, 1Y=1wk)
     """
     try:
         import yfinance as yf
 
-        period_days = max(2, int(period_days))
-        end = datetime.today()
-        start = end - timedelta(days=period_days)
-        interval = "1d" if period_days <= DAILY_INTERVAL_THRESHOLD_DAYS else "1wk"
+        range_mapped = _RANGE_MAP.get(range_str, range_str.lower())
+        interval_mapped = _INTERVAL_MAP.get(interval_str, interval_str.lower())
+        if range_mapped not in _VALID_PERIODS:
+            logger.warning("Unsupported range '%s' for %s; defaulting to 1y", range_str, symbol)
+            range_mapped = "1y"
+        if interval_mapped not in _VALID_INTERVALS:
+            logger.warning("Unsupported interval '%s' for %s; defaulting to 1d", interval_str, symbol)
+            interval_mapped = "1d"
         ticker = yf.Ticker(symbol)
-        df = ticker.history(
-            start=start.strftime("%Y-%m-%d"),
-            end=end.strftime("%Y-%m-%d"),
-            interval=interval,
-            auto_adjust=False,
-            prepost=False,
-        )
+        df = ticker.history(period=range_mapped, interval=interval_mapped)
 
         if df.empty:
             logger.warning("yfinance returned empty DataFrame for %s", symbol)
