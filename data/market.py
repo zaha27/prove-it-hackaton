@@ -24,7 +24,7 @@ _VALID_PERIODS = {"6mo", "1y", "5y", "max"}
 _VALID_INTERVALS = {"1d", "1wk", "1mo"}
 
 
-def get_price_data(symbol: str, range_str: str = "1y", interval_str: str = "1d") -> Optional[dict]:
+def get_price_data(symbol: str, range_str: str = "1Y", interval_str: str = "1D") -> Optional[dict]:
     """
     Fetch OHLCV data using yfinance period + interval.
 
