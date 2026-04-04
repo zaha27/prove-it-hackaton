@@ -9,6 +9,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 import logging
+from requests.exceptions import RequestException
 
 import numpy as np
 import pandas as pd
@@ -70,14 +71,21 @@ def _feature_vector(feature_values: list[float], size: int = VECTOR_SIZE) -> lis
 
 def _row_id(symbol: str, date: str) -> int:
     digest = hashlib.sha256(f"{symbol}:{date}".encode("utf-8")).hexdigest()[:16]
+    # Qdrant integer IDs must fit signed int64.
     return int(digest, 16) % (2**63)
 
 
 def _prepare_symbol_dataframe(symbol: str, years: int) -> pd.DataFrame:
     try:
         hist = yf.Ticker(symbol).history(period=f"{years}y", interval="1d", auto_adjust=False)
+    except RequestException as exc:
+        logger.warning("Network/API error while downloading %s history: %s", symbol, exc)
+        return pd.DataFrame()
+    except ValueError as exc:
+        logger.warning("Invalid symbol or malformed request for %s: %s", symbol, exc)
+        return pd.DataFrame()
     except Exception as exc:
-        logger.warning("Failed to download history for %s: %s", symbol, exc)
+        logger.warning("Unexpected failure while downloading %s history: %s", symbol, exc)
         return pd.DataFrame()
 
     if hist.empty:
@@ -96,9 +104,10 @@ def _prepare_symbol_dataframe(symbol: str, years: int) -> pd.DataFrame:
 def _engineer_training_rows(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     fe = XGBoostFeatureEngineer()
     feat_df = fe.engineer_features(df)
+    close = feat_df["Close"].replace(0, np.nan)
 
     for horizon in TARGET_HORIZONS:
-        feat_df[f"target_return_{horizon}d"] = feat_df["Close"].shift(-horizon) / feat_df["Close"] - 1.0
+        feat_df[f"target_return_{horizon}d"] = feat_df["Close"].shift(-horizon) / close - 1.0
 
     feature_cols = [c for c in fe.feature_names if c in feat_df.columns]
     required_cols = feature_cols + [f"target_return_{h}d" for h in TARGET_HORIZONS]
@@ -224,13 +233,17 @@ def get_training_data(
     if len(X) < 5:
         raise ValueError(f"Not enough rows for train/test split for {symbol}: {len(X)}")
 
-    desired_split_idx = math.floor(len(X) * TRAIN_TEST_SPLIT_RATIO)
-    min_split_idx = 1
-    max_split_idx = len(X) - 1
-    split_idx = max(min_split_idx, min(max_split_idx, desired_split_idx))
+    split_idx = _calculate_chronological_split_index(len(X), TRAIN_TEST_SPLIT_RATIO)
     X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
     return X_train, X_test, y_train, y_test
+
+
+def _calculate_chronological_split_index(total_rows: int, ratio: float) -> int:
+    desired_split_idx = math.floor(total_rows * ratio)
+    min_split_idx = 1
+    max_split_idx = total_rows - 1
+    return max(min_split_idx, min(max_split_idx, desired_split_idx))
 
 
 def main() -> int:
