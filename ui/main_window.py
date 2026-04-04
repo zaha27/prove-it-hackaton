@@ -415,7 +415,10 @@ class MainWindow(QMainWindow):
             if item.widget():
                 item.widget().setParent(None)
         self._map_layout.addWidget(widget)
-        if hasattr(widget, "load_started") and hasattr(widget, "load_finished"):
+        supports_loading_events = (
+            hasattr(widget, "load_started") and hasattr(widget, "load_finished")
+        )
+        if supports_loading_events:
             widget.load_started.connect(
                 lambda: self._map_overlay.show_loading("Loading map...")
             )
