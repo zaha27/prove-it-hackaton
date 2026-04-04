@@ -50,6 +50,7 @@ class PanelAI(QWidget):
         # Text area
         self._text_edit = QTextEdit()
         self._text_edit.setReadOnly(True)
+        self._text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         font = QFont("Menlo", 12)
         font.setStyleHint(QFont.StyleHint.Monospace)
         self._text_edit.setFont(font)
@@ -57,6 +58,15 @@ class PanelAI(QWidget):
             "QTextEdit{background:#0d1117;color:#cdd9e5;border:none;padding:12px;}"
         )
         layout.addWidget(self._text_edit, stretch=1)
+
+    def update_insight(self, insight_text: str) -> None:
+        """
+        Public contract method — called by Backend/Bridge with the LLM response.
+
+        Args:
+            insight_text: plain text or markdown string from the AI engine.
+        """
+        self.set_text(insight_text)
 
     def set_text(self, text: str) -> None:
         """Display the AI analysis text. Stops any loading animation."""

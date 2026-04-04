@@ -96,6 +96,30 @@ class PanelNews(QWidget):
         self._scroll.setWidget(self._content)
         layout.addWidget(self._scroll, stretch=1)
 
+    def update_news(self, news_data: list[dict]) -> None:
+        """
+        Public contract method — called by Backend/Bridge with fresh data.
+
+        Expected keys per dict:
+            headline  (str)  — article title
+            source    (str)  — e.g. "Reuters"
+            date      (str)  — e.g. "2026-04-04 14:22"
+            sentiment (str)  — "bullish" | "bearish" | "neutral"
+
+        Translates to internal format and delegates to load_items().
+        """
+        normalized = [
+            {
+                "title":     item.get("headline", item.get("title", "")),
+                "source":    item.get("source", ""),
+                "timestamp": item.get("date", item.get("timestamp", "")),
+                "sentiment": item.get("sentiment", "neutral"),
+                "summary":   item.get("summary", ""),
+            }
+            for item in news_data
+        ]
+        self.load_items(normalized)
+
     def load_items(self, items: list[dict]) -> None:
         """Replace current news cards with new items."""
         # Clear existing cards (keep the trailing stretch)

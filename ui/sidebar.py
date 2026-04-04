@@ -18,6 +18,9 @@ class Sidebar(QWidget):
         refresh_clicked(): emits when the Refresh button is pressed.
     """
 
+    # Primary signal — use this one to connect in main.py / bridge.py
+    commodity_changed = pyqtSignal(str)   # emits ticker, e.g. "GC=F"
+    # Kept for backwards-compatibility with bridge.py
     commodity_selected = pyqtSignal(str)
     refresh_clicked = pyqtSignal()
 
@@ -54,7 +57,8 @@ class Sidebar(QWidget):
     def _on_selection_changed(self, current: QListWidgetItem, _prev) -> None:
         if current:
             ticker = current.data(Qt.ItemDataRole.UserRole)
-            self.commodity_selected.emit(ticker)
+            self.commodity_changed.emit(ticker)   # ← connect to this
+            self.commodity_selected.emit(ticker)  # ← bridge.py uses this
 
     def select_first(self) -> None:
         """Programmatically select the first commodity in the list."""
