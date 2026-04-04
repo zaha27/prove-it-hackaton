@@ -7,6 +7,7 @@ from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
 LIVE_REFRESH_INTERVAL_MS = 30_000
+DEFAULT_TIMEFRAME = "1M"
 
 
 class _FetchWorker(QThread):
@@ -69,7 +70,7 @@ class AppBridge(QObject):
         self._panel_chart = panel_chart
         self._use_mock = use_mock
         self._worker: _FetchWorker | None = None
-        self._current_timeframe: str = "1M"
+        self._current_timeframe: str = DEFAULT_TIMEFRAME
         self._timeframe_days: dict[str, int] = {
             "1W": 7,
             "1M": 30,
@@ -105,7 +106,7 @@ class AppBridge(QObject):
         """
         Re-fetch when timeframe changes.
         """
-        self._current_timeframe = timeframe if timeframe in self._timeframe_days else "1M"
+        self._current_timeframe = timeframe if timeframe in self._timeframe_days else DEFAULT_TIMEFRAME
         logger.info("Timeframe changed to %s", self._current_timeframe)
         if self._current_symbol:
             self._fetch(self._current_symbol)
