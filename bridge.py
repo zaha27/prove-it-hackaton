@@ -38,32 +38,36 @@ class _FetchWorker(QThread):
 
     def run(self) -> None:
         try:
-            from data import market
-            price_data = market.get_price_data(
-                self.symbol,
-                range_str=self.range_str,
-                interval_str=self.interval_str,
-            )
-            if price_data is None:
-                logger.warning("Live market fetch failed for %s; falling back to mock chart data", self.symbol)
-                from data import mock_data
-                price_data = mock_data.get_price_data(self.symbol)
-                if price_data is None:
-                    self.error_occurred.emit(f"Price data unavailable for {self.symbol}")
-                    return
-
             if self.use_mock:
                 from data import mock_data
-                news = mock_data.get_news(self.symbol) if self.include_context else []
+                price_data = mock_data.get_price_data(self.symbol)
+                news    = mock_data.get_news(self.symbol)       if self.include_context else []
                 insight = mock_data.get_ai_insight(self.symbol) if self.include_context else ""
             else:
-                from data import news as news_module, ai_engine
-                if self.include_context:
-                    news = news_module.get_news(self.symbol)
-                    insight = ai_engine.get_ai_insight(self.symbol, price_data, news)
+                from data import backend_client, market, news as news_module, ai_engine
+
+                if backend_client.is_backend_available():
+                    logger.info("Using backend API for %s", self.symbol)
+                    price_data = backend_client.get_price_data(
+                        self.symbol, self.range_str, self.interval_str
+                    ) or {}
+                    if self.include_context:
+                        news    = backend_client.get_news(self.symbol)
+                        insight = backend_client.get_ai_insight(self.symbol, price_data, news)
+                    else:
+                        news, insight = [], ""
                 else:
-                    news = []
-                    insight = ""
+                    logger.info("Backend unavailable, using direct APIs for %s", self.symbol)
+                    price_data = market.get_price_data(
+                        self.symbol,
+                        range_str=self.range_str,
+                        interval_str=self.interval_str,
+                    ) or {}
+                    if self.include_context:
+                        news    = news_module.get_news(self.symbol)
+                        insight = ai_engine.get_ai_insight(self.symbol, price_data, news)
+                    else:
+                        news, insight = [], ""
 
             self.data_ready.emit(price_data or {}, news, insight)
 

@@ -136,17 +136,22 @@ class MCPService:
             )
             mcp_context = await self.get_context(context_request)
 
-        # Generate insight using base service (DeepSeek)
+        # Generate insight — try DeepSeek first, fall back to Anthropic
         import asyncio
 
         loop = asyncio.get_event_loop()
-        insight: AIInsight = await loop.run_in_executor(
-            None,
-            self._base_service.generate_insight,
-            request.commodity,
-            request.price_data,
-            request.news_summary,
-        )
+
+        def _generate() -> AIInsight:
+            # InsightService.generate_insight only takes (commodity, use_cache)
+            try:
+                return self._base_service.generate_insight(
+                    request.commodity, use_cache=True
+                )
+            except (ValueError, Exception) as exc:
+                # DeepSeek key missing or call failed → use Anthropic fallback
+                return self._ollama_fallback(request, str(exc))
+
+        insight: AIInsight = await loop.run_in_executor(None, _generate)
 
         return MCPInsightResponse(
             commodity=request.commodity.upper(),
@@ -155,3 +160,46 @@ class MCPService:
             use_mcp=request.use_mcp,
             fetched_at=datetime.utcnow(),
         )
+
+    def _ollama_fallback(self, request: MCPInsightRequest, error: str) -> AIInsight:
+        """Fallback to local Ollama (Gemma4) when DeepSeek is unavailable."""
+        try:
+            from src.rl.ollama_client import OllamaClient
+            ollama = OllamaClient()
+            health = ollama.check_health()
+            if not health.get("model_available"):
+                raise RuntimeError(f"Ollama model not available: {health}")
+
+            prompt = (
+                f"You are a commodity analyst. Analyze {request.commodity}.\n"
+                f"Price context: {request.price_data}\n"
+                f"News: {request.news_summary or 'No news available'}\n\n"
+                "Provide a brief analysis with: sentiment (bullish/bearish/neutral), "
+                "key factors, and recommendation. Be concise."
+            )
+            text = ollama.generate(prompt)
+            return AIInsight(
+                commodity=request.commodity,
+                summary=text[:400] if text else "Analysis unavailable",
+                key_factors=[],
+                price_outlook="",
+                recommendation="",
+                sentiment="neutral",
+                confidence=0.5,
+                model="gemma4-local",
+            )
+        except Exception as ollama_err:
+            return AIInsight(
+                commodity=request.commodity,
+                summary=(
+                    f"AI insight unavailable. DeepSeek error: {error}. "
+                    f"Ollama error: {ollama_err}. "
+                    "Configure DEEPSEEK_API_KEY in .env or start Ollama with: ollama serve"
+                ),
+                key_factors=[],
+                price_outlook="",
+                recommendation="",
+                sentiment="neutral",
+                confidence=0.0,
+                model="none",
+            )
