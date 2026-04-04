@@ -1,5 +1,5 @@
 [project]
-name = "prove-it-hackaton"
+name = "ai-commodity-analyzer"
 version = "0.1.0"
 description = "AI Commodity Price Intelligence Platform"
 readme = "README.md"
@@ -31,3 +31,25 @@ dev = [
     "ruff>=0.6.0",
     "mypy>=1.8.0",
 ]
+description = "AI-powered commodity market analyzer with PyQt6 and LLM insights"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "PyQt6>=6.6.0",
+    "PyQt6-WebEngine>=6.6.0",
+    "pyqtdarktheme>=2.1.0",
+    "plotly>=5.18.0",
+    "yfinance>=0.2.36",
+    "pandas>=2.1.0",
+    "numpy>=1.26.0",
+    "anthropic>=0.34.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["data", "ui", "charts"]

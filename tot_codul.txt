@@ -1,0 +1,5371 @@
+
+-e \n\n--- FILE: ./ui/panel_ai.py ---\n
+-e \n\n--- FILE: ./ui/panel_ai.py ---\n
+"""
+ui/panel_ai.py — AI insight panel, clean Perplexity style, no emoji.
+# TODO: Dev1 — add streaming token display when using real Anthropic API
+"""
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFont
+
+
+class PanelAI(QWidget):
+    """
+    LLM Chain-of-Thought analysis panel.
+    Call set_loading(True) before fetch, update_insight(text) when done.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("background:#0D0D0D;")
+        self._dot_count = 0
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick_loading)
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._build_header())
+        layout.addWidget(self._build_tag_bar())
+        layout.addWidget(self._build_text_area(), stretch=1)
+
+    def _build_header(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(40)
+        bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(18, 0, 18, 0)
+
+        title = QLabel("AI Insight")
+        title.setStyleSheet(
+            "color:#9CA3AF; font-size:12px; font-weight:500; letter-spacing:0.3px;"
+        )
+        row.addWidget(title)
+        row.addStretch()
+
+        self._status_label = QLabel("")
+        self._status_label.setStyleSheet("color:#374151; font-size:11px;")
+        row.addWidget(self._status_label)
+
+        # Tiny status indicator square (replaces pulsing dot)
+        self._indicator = QLabel("")
+        self._indicator.setFixedSize(6, 6)
+        self._indicator.setStyleSheet(
+            "background:#1C1C1C; border-radius:3px; margin-left:6px;"
+        )
+        row.addWidget(self._indicator)
+        return bar
+
+    def _build_tag_bar(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(30)
+        bar.setStyleSheet("background:#0D0D0D; border-bottom:1px solid #111111;")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(18, 0, 18, 0)
+        row.setSpacing(6)
+
+        for text, fg, bg in [
+            ("Chain-of-Thought", "#93C5FD", "rgba(147,197,253,0.08)"),
+            ("claude-sonnet",    "#6B7280", "rgba(107,114,128,0.06)"),
+        ]:
+            tag = QLabel(text)
+            tag.setStyleSheet(
+                f"color:{fg}; background:{bg}; border-radius:4px;"
+                "font-size:10px; font-weight:500; padding:1px 8px;"
+            )
+            row.addWidget(tag)
+
+        row.addStretch()
+        return bar
+
+    def _build_text_area(self) -> QTextEdit:
+        self._text_edit = QTextEdit()
+        self._text_edit.setReadOnly(True)
+        self._text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        font = QFont("Menlo", 12)
+        font.setStyleHint(QFont.StyleHint.Monospace)
+        self._text_edit.setFont(font)
+        self._text_edit.setStyleSheet(
+            "QTextEdit {"
+            "  background:#0D0D0D;"
+            "  color:#E5E7EB;"
+            "  border:none;"
+            "  padding:20px 22px;"
+            "  selection-background-color:#1E3A5F;"
+            "}"
+        )
+        return self._text_edit
+
+    # Public contract ──────────────────────────────────────────────────────────
+
+    def update_insight(self, insight_text: str) -> None:
+        """Called by Backend/Bridge with the LLM response (plain text or markdown)."""
+        self.set_text(insight_text)
+
+    def set_text(self, text: str) -> None:
+        self._timer.stop()
+        self._status_label.setText("")
+        self._indicator.setStyleSheet(
+            "background:#4ADE80; border-radius:3px; margin-left:6px;"
+        )
+        self._text_edit.setMarkdown(text)
+
+    def set_loading(self, loading: bool) -> None:
+        if loading:
+       """
+ui/panel_ai.py — AI insight panel, clean Perplexity style, no emoji.
+# TODO: Dev1 — add streaming token display when using real Anthropic API
+"""
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFont
+
+
+class PanelAI(QWidget):
+    """
+    LLM Chain-of-Thought analysis panel.
+    Call set_loading(True) before fetch, update_insight(text) when done.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("background:#0D0D0D;")
+        self._dot_count = 0
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick_loading)
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._build_header())
+        layout.addWidget(self._build_tag_bar())
+        layout.addWidget(self._build_text_area(), stretch=1)
+
+    def _build_header(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(40)
+        bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(18, 0, 18, 0)
+
+        title = QLabel("AI Insight")
+        title.setStyleSheet(
+            "color:#9CA3AF; font-size:12px; font-weight:500; letter-spacing:0.3px;"
+        )
+        row.addWidget(title)
+        row.addStretch()
+
+        self._status_label = QLabel("")
+        self._status_label.setStyleSheet("color:#374151; font-size:11px;")
+        row.addWidget(self._status_label)
+
+        # Tiny status indicator square (replaces pulsing dot)
+        self._indicator = QLabel("")
+        self._indicator.setFixedSize(6, 6)
+        self._indicator.setStyleSheet(
+            "background:#1C1C1C; border-radius:3px; margin-left:6px;"
+        )
+        row.addWidget(self._indicator)
+        return bar
+
+    def _build_tag_bar(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(30)
+        bar.setStyleSheet("background:#0D0D0D; border-bottom:1px solid #111111;")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(18, 0, 18, 0)
+        row.setSpacing(6)
+
+        for text, fg, bg in [
+            ("Chain-of-Thought", "#93C5FD", "rgba(147,197,253,0.08)"),
+            ("claude-sonnet",    "#6B7280", "rgba(107,114,128,0.06)"),
+        ]:
+            tag = QLabel(text)
+            tag.setStyleSheet(
+                f"color:{fg}; background:{bg}; border-radius:4px;"
+                "font-size:10px; font-weight:500; padding:1px 8px;"
+            )
+            row.addWidget(tag)
+
+        row.addStretch()
+        return bar
+
+    def _build_text_area(self) -> QTextEdit:
+        self._text_edit = QTextEdit()
+        self._text_edit.setReadOnly(True)
+        self._text_edit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        font = QFont("Menlo", 12)
+        font.setStyleHint(QFont.StyleHint.Monospace)
+        self._text_edit.setFont(font)
+        self._text_edit.setStyleSheet(
+            "QTextEdit {"
+            "  background:#0D0D0D;"
+            "  color:#E5E7EB;"
+            "  border:none;"
+            "  padding:20px 22px;"
+            "  selection-background-color:#1E3A5F;"
+            "}"
+        )
+        return self._text_edit
+
+    # Public contract ──────────────────────────────────────────────────────────
+
+    def update_insight(self, insight_text: str) -> None:
+        """Called by Backend/Bridge with the LLM response (plain text or markdown)."""
+        self.set_text(insight_text)
+
+    def set_text(self, text: str) -> None:
+        self._timer.stop()
+        self._status_label.setText("")
+        self._indicator.setStyleSheet(
+            "background:#4ADE80; border-radius:3px; margin-left:6px;"
+        )
+        self._text_edit.setMarkdown(text)
+
+    def set_loading(self, loading: bool) -> None:
+        if loading:
+            self._text_edit.clear()
+            self._dot_count = 0
+            self._indicator.setStyleSheet(
+                "background:#93C5FD; border-radius:3px; margin-left:6px;"
+            )
+            self._timer.start(400)
+        else:
+            self._timer.stop()
+            self._status_label.setText("")
+            self._indicator.setStyleSheet(
+                "background:#1C1C1C; border-radius:3px; margin-left:6px;"
+            )
+
+    def _tick_loading(self) -> None:
+        self._dot_count = (self._dot_count + 1) % 4
+        suffix = "." * self._dot_count
+        self._status_label.setText(f"Analyzing{suffix}")
+        # Pulse: bright -> dim -> bright
+        bright = self._dot_count % 2 == 0
+        color = "#93C5FD" if bright else "#1E3A5F"
+        self._indicator.setStyleSheet(
+            f"background:{color}; border-radius:3px; margin-left:6px;"
+        )
+     self._text_edit.clear()
+            self._dot_count = 0
+            self._indicator.setStyleSheet(
+                "background:#93C5FD; border-radius:3px; margin-left:6px;"
+            )
+            self._timer.start(400)
+        else:
+            self._timer.stop()
+            self._status_label.setText("")
+            self._indicator.setStyleSheet(
+                "background:#1C1C1C; border-radius:3px; margin-left:6px;"
+            )
+
+    def _tick_loading(self) -> None:
+        self._dot_count = (self._dot_count + 1) % 4
+        suffix = "." * self._dot_count
+        self._status_label.setText(f"Analyzing{suffix}")
+        # Pulse: bright -> dim -> bright
+        bright = self._dot_count % 2 == 0
+        color = "#93C5FD" if bright else "#1E3A5F"
+        self._indicator.setStyleSheet(
+            f"background:{color}; border-radius:3px; margin-left:6px;"
+        )
+-e \n\n--- FILE: ./ui/main_window.py ---\n
+-e \n\n--- FILE: ./ui/main_window.py ---\n
+"""
+ui/main_window.py
+
+Tab 0 — World Macro View:
+    QHBoxLayout: left 30% (macro_news / macro_ai stacked) | right 70% (map_container)
+
+Tab 1 — Trading Desk:
+    Header row 1: "AI Commodity Analyzer" centrat
+    Header row 2: commodity name + pret, stanga
+    Body: sidebar (220px) | QSplitter(V): chart_container / panel_news + panel_ai
+
+Loading API:
+    window.show_loading(True,  "Fetching data...")
+    window.show_loading(False)
+"""
+import logging
+import os
+from datetime import datetime
+
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QHBoxLayout, QSplitter,
+    QVBoxLayout, QStatusBar, QLabel, QTabWidget, QFrame,
+)
+from PyQt6.QtCore import Qt, QTimer, QEvent
+from PyQt6.QtGui import QMovie
+
+from ui.sidebar import Sidebar
+from ui.panel_news import PanelNews
+from ui.panel_ai import PanelAI
+
+logger = logging.getLogger(__name__)
+
+
+# ── Spinner overlay ────────────────────────────────────────────────────────────
+
+class _SpinnerOverlay(QWidget):
+    """
+    Overlay cu spinner GIF animat + mesaj.
+    Pluteste deasupra parent-ului si se redimensioneaza automat via eventFilter.
+
+    Daca spinner.gif lipseste, fallback la animatie text (puncte).
+    """
+
+    _GIF_PATH = os.path.join(os.path.dirname(__file__), "..", "spinner.gif")
+
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        parent.installEventFilter(self)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setStyleSheet("background: rgba(8, 8, 8, 0.88);")
+        self.hide()
+
+        self._movie: QMovie | None = None
+        self._fallback_count = 0
+        self._fallback_timer = QTimer(self)
+        self._fallback_timer.timeout.connect(self._tick_fallback)
+
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(14)
+
+        # Spinner (GIF via QMovie, sau un label text ca fallback)
+        self._spinner_label = QLabel()
+        self._spinner_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._spinner_label.setStyleSheet("background: transparent;")
+
+        gif = os.path.abspath(self._GIF_PATH)
+        if os.path.exists(gif):
+            self._movie = QMovie(gif)
+            self._spinner_label.setMovie(self._movie)
+        else:
+            # Fallback: patrat colorat animat ca pseudo-spinner
+            self._spinner_label.setFixedSize(32, 32)
+            self._spinner_label.setStyleSheet(
+                "background: #1E3A5F; border-radius: 6px;"
+            )
+
+        layout.addWidget(self._spinner_label)
+
+        # Mesaj
+        self._msg_label = QLabel("Fetching data...")
+        self._msg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._msg_label.setStyleSheet(
+            "color: #93C5FD;"
+            "font-size: 13px;"
+            "font-weight: 500;"
+            "letter-spacing: 0.3px;"
+            "background: transparent;"
+        )
+        layout.addWidget(self._msg_label)
+
+    # ── Public ─────────────────────────────────────────────────────────────────
+
+    def show_loading(self, message: str = "Fetching data...") -> None:
+        self._msg_label.setText(message)
+        self.resize(self.parent().size())
+        self.raise_()
+        self.show()
+        if self._movie:
+            self._movie.start()
+        else:
+            self._fallback_count = 0
+            self._fallback_timer.start(350)
+
+    def hide_loading(self) -> None:
+        if self._movie:
+            self._movie.stop()
+        self._fallback_timer.stop()
+        self.hide()
+
+    # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _tick_fallback(self) -> None:
+        """Fallback cand GIF-ul lipseste: animeaza mesajul c"""
+ui/main_window.py
+
+Tab 0 — World Macro View:
+    QHBoxLayout: left 30% (macro_news / macro_ai stacked) | right 70% (map_container)
+
+Tab 1 — Trading Desk:
+    Header row 1: "AI Commodity Analyzer" centrat
+    Header row 2: commodity name + pret, stanga
+    Body: sidebar (220px) | QSplitter(V): chart_container / panel_news + panel_ai
+
+Loading API:
+    window.show_loading(True,  "Fetching data...")
+    window.show_loading(False)
+"""
+import logging
+import os
+from datetime import datetime
+
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QHBoxLayout, QSplitter,
+    QVBoxLayout, QStatusBar, QLabel, QTabWidget, QFrame,
+)
+from PyQt6.QtCore import Qt, QTimer, QEvent
+from PyQt6.QtGui import QMovie
+
+from ui.sidebar import Sidebar
+from ui.panel_news import PanelNews
+from ui.panel_ai import PanelAI
+
+logger = logging.getLogger(__name__)
+
+
+# ── Spinner overlay ────────────────────────────────────────────────────────────
+
+class _SpinnerOverlay(QWidget):
+    """
+    Overlay cu spinner GIF animat + mesaj.
+    Pluteste deasupra parent-ului si se redimensioneaza automat via eventFilter.
+
+    Daca spinner.gif lipseste, fallback la animatie text (puncte).
+    """
+
+    _GIF_PATH = os.path.join(os.path.dirname(__file__), "..", "spinner.gif")
+
+    def __init__(self, parent: QWidget):
+        super().__init__(parent)
+        parent.installEventFilter(self)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setStyleSheet("background: rgba(8, 8, 8, 0.88);")
+        self.hide()
+
+        self._movie: QMovie | None = None
+        self._fallback_count = 0
+        self._fallback_timer = QTimer(self)
+        self._fallback_timer.timeout.connect(self._tick_fallback)
+
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setSpacing(14)
+
+        # Spinner (GIF via QMovie, sau un label text ca fallback)
+        self._spinner_label = QLabel()
+        self._spinner_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._spinner_label.setStyleSheet("background: transparent;")
+
+        gif = os.path.abspath(self._GIF_PATH)
+        if os.path.exists(gif):
+            self._movie = QMovie(gif)
+            self._spinner_label.setMovie(self._movie)
+        else:
+            # Fallback: patrat colorat animat ca pseudo-spinner
+            self._spinner_label.setFixedSize(32, 32)
+            self._spinner_label.setStyleSheet(
+                "background: #1E3A5F; border-radius: 6px;"
+            )
+
+        layout.addWidget(self._spinner_label)
+
+        # Mesaj
+        self._msg_label = QLabel("Fetching data...")
+        self._msg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._msg_label.setStyleSheet(
+            "color: #93C5FD;"
+            "font-size: 13px;"
+            "font-weight: 500;"
+            "letter-spacing: 0.3px;"
+            "background: transparent;"
+        )
+        layout.addWidget(self._msg_label)
+
+    # ── Public ─────────────────────────────────────────────────────────────────
+
+    def show_loading(self, message: str = "Fetching data...") -> None:
+        self._msg_label.setText(message)
+        self.resize(self.parent().size())
+        self.raise_()
+        self.show()
+        if self._movie:
+            self._movie.start()
+        else:
+            self._fallback_count = 0
+            self._fallback_timer.start(350)
+
+    def hide_loading(self) -> None:
+        if self._movie:
+            self._movie.stop()
+        self._fallback_timer.stop()
+        self.hide()
+
+    # ── Internals ──────────────────────────────────────────────────────────────
+
+    def _tick_fallback(self) -> None:
+        """Fallback cand GIF-ul lipseste: animeaza mesajul cu puncte."""
+        self._fallback_count = (self._fallback_count + 1) % 4
+        base = self._msg_label.text().rstrip(".")
+        self._msg_label.setText(base + "." * self._fallback_count)
+
+    def eventFilter(self, source, event) -> bool:
+        if source is self.parent() and event.type() == QEvent.Type.Resize:
+            self.resize(source.size())
+        return super().eventFilter(source, event)
+
+
+# ── Main window ────────────────────────────────────────────────────────────────
+
+class MainWindow(QMainWindow):
+    """
+    Layout global:
+
+    QVBoxLayout (central widget)
+    ├── QTabWidget
+    │   ├── Tab 0: World Macro View
+    │   │    QHBoxLayout
+    │   │    ├── Left 30%: QSplitter(V)  macro_news / macro_ai
+    │   │    └── Right 70%: map_container  [+ _map_overlay]
+    │   │
+    │   └── Tab 1: Trading Desk
+    │        QVBoxLayout
+    │        ├── Header row 1: titlu app centrat
+    │        ├── Header row 2: commodity name + pret, stanga
+    │        └── QHBoxLayout
+    │             ├── Sidebar (220px)
+    │             └── QSplitter(V)
+    │                  ├── chart_container  [+ _chart_overlay]
+    │                  └── QSplitter(H): panel_news / panel_ai
+    │
+    └── Status bar
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Commodity AI Analyzer")
+        self.resize(1440, 900)
+        self.setStyleSheet("background: #080808;")
+        self._current_symbol: str = ""
+        self._map_placeholder: QLabel | None = None
+        self._init_ui()
+
+    # ── Construction ───────────────────────────────────────────────────────────
+
+    def _init_ui(self) -> None:
+        central = QWidget()
+        central.setStyleSheet("background: #080808;")
+        self.setCentralWidget(central)
+
+        root = QVBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        root.addWidget(self._build_tabs(), stretch=1)
+
+        self._status_bar = QStatusBar()
+        self._status_bar.setStyleSheet(
+            "QStatusBar {"
+            "  background: #080808; color: #374151;"
+            "  border-top: 1px solid #111111;"
+            "  font-size: 11px; padding: 0 14px;"
+            "}"
+        )
+        self.setStatusBar(self._status_bar)
+        self._status_bar.showMessage("Select a commodity to load data")
+
+    def _build_tabs(self) -> QTabWidget:
+        self._tabs = QTabWidget()
+        self._tabs.addTab(self._build_tab_macro(),   "World Macro View")
+        self._tabs.addTab(self._build_tab_trading(), "Trading Desk")
+        return self._tabs
+
+    # ── Tab 0: World Macro View ────────────────────────────────────────────────
+
+    def _build_tab_macro(self) -> QWidget:
+        """
+        QHBoxLayout
+        ├── Left  30%: QSplitter(V)  macro_news (sus) / macro_ai (jos)
+        └── Right 70%: map_container  [+ _map_overlay flotant deasupra]
+
+        Colegul injecteaza harta cu:
+            window.set_map_widget(web_view)
+        """
+        tab = QWidget()
+        tab.setStyleSheet("background: #080808;")
+
+        outer = QHBoxLayout(tab)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        h_splitter = QSplitter(Qt.Orientation.Horizontal)
+        h_splitter.setHandleWidth(1)
+
+        # Stanga 30%: macro panels stacked
+        left_split = QSplitter(Qt.Orientation.Vertical)
+        left_split.setHandleWidth(1)
+        self.macro_news = PanelNews()
+        self.macro_ai   = PanelAI()
+        left_split.addWidget(self.macro_news)
+        left_split.addWidget(self.macro_ai)
+        left_split.setSizes([450, 450])
+       u puncte."""
+        self._fallback_count = (self._fallback_count + 1) % 4
+        base = self._msg_label.text().rstrip(".")
+        self._msg_label.setText(base + "." * self._fallback_count)
+
+    def eventFilter(self, source, event) -> bool:
+        if source is self.parent() and event.type() == QEvent.Type.Resize:
+            self.resize(source.size())
+        return super().eventFilter(source, event)
+
+
+# ── Main window ────────────────────────────────────────────────────────────────
+
+class MainWindow(QMainWindow):
+    """
+    Layout global:
+
+    QVBoxLayout (central widget)
+    ├── QTabWidget
+    │   ├── Tab 0: World Macro View
+    │   │    QHBoxLayout
+    │   │    ├── Left 30%: QSplitter(V)  macro_news / macro_ai
+    │   │    └── Right 70%: map_container  [+ _map_overlay]
+    │   │
+    │   └── Tab 1: Trading Desk
+    │        QVBoxLayout
+    │        ├── Header row 1: titlu app centrat
+    │        ├── Header row 2: commodity name + pret, stanga
+    │        └── QHBoxLayout
+    │             ├── Sidebar (220px)
+    │             └── QSplitter(V)
+    │                  ├── chart_container  [+ _chart_overlay]
+    │                  └── QSplitter(H): panel_news / panel_ai
+    │
+    └── Status bar
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Commodity AI Analyzer")
+        self.resize(1440, 900)
+        self.setStyleSheet("background: #080808;")
+        self._current_symbol: str = ""
+        self._map_placeholder: QLabel | None = None
+        self._init_ui()
+
+    # ── Construction ───────────────────────────────────────────────────────────
+
+    def _init_ui(self) -> None:
+        central = QWidget()
+        central.setStyleSheet("background: #080808;")
+        self.setCentralWidget(central)
+
+        root = QVBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        root.addWidget(self._build_tabs(), stretch=1)
+
+        self._status_bar = QStatusBar()
+        self._status_bar.setStyleSheet(
+            "QStatusBar {"
+            "  background: #080808; color: #374151;"
+            "  border-top: 1px solid #111111;"
+            "  font-size: 11px; padding: 0 14px;"
+            "}"
+        )
+        self.setStatusBar(self._status_bar)
+        self._status_bar.showMessage("Select a commodity to load data")
+
+    def _build_tabs(self) -> QTabWidget:
+        self._tabs = QTabWidget()
+        self._tabs.addTab(self._build_tab_macro(),   "World Macro View")
+        self._tabs.addTab(self._build_tab_trading(), "Trading Desk")
+        return self._tabs
+
+    # ── Tab 0: World Macro View ────────────────────────────────────────────────
+
+    def _build_tab_macro(self) -> QWidget:
+        """
+        QHBoxLayout
+        ├── Left  30%: QSplitter(V)  macro_news (sus) / macro_ai (jos)
+        └── Right 70%: map_container  [+ _map_overlay flotant deasupra]
+
+        Colegul injecteaza harta cu:
+            window.set_map_widget(web_view)
+        """
+        tab = QWidget()
+        tab.setStyleSheet("background: #080808;")
+
+        outer = QHBoxLayout(tab)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        h_splitter = QSplitter(Qt.Orientation.Horizontal)
+        h_splitter.setHandleWidth(1)
+
+        # Stanga 30%: macro panels stacked
+        left_split = QSplitter(Qt.Orientation.Vertical)
+        left_split.setHandleWidth(1)
+        self.macro_news = PanelNews()
+        self.macro_ai   = PanelAI()
+        left_split.addWidget(self.macro_news)
+        left_split.addWidget(self.macro_ai)
+        left_split.setSizes([450, 450])
+        h_splitter.addWidget(left_split)
+
+        # Dreapta 70%: map container + overlay
+        self.map_container = QFrame()
+        self.map_container.setFrameShape(QFrame.Shape.NoFrame)
+        self.map_container.setStyleSheet("background: #080808;")
+        self._map_layout = QVBoxLayout(self.map_container)
+        self._map_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._map_placeholder = QLabel("World map will appear here")
+        self._map_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._map_placeholder.setStyleSheet("color: #374151; font-size: 13px;")
+        self._map_layout.addWidget(self._map_placeholder)
+
+        self._map_overlay = _SpinnerOverlay(self.map_container)
+        h_splitter.addWidget(self.map_container)
+
+        # 30 / 70 proportional split
+        h_splitter.setSizes([432, 1008])
+
+        outer.addWidget(h_splitter)
+        return tab
+
+    # ── Tab 1: Trading Desk ────────────────────────────────────────────────────
+
+    def _build_tab_trading(self) -> QWidget:
+        """
+        QVBoxLayout
+        ├── _build_trading_header()   (doua randuri: titlu + commodity/pret)
+        └── QHBoxLayout
+             ├── Sidebar (220px)
+             └── QSplitter(V)
+                  ├── chart_container  [+ _chart_overlay]
+                  └── QSplitter(H): panel_news / panel_ai
+
+        Colegul injecteaza graficul cu:
+            window.set_chart_widget(panel_chart)
+        """
+        tab = QWidget()
+        tab.setStyleSheet("background: #080808;")
+
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.setSpacing(0)
+
+        tab_layout.addWidget(self._build_trading_header())
+
+        # Body
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+
+        self.sidebar = Sidebar()
+        body.addWidget(self.sidebar)
+
+        v_splitter = QSplitter(Qt.Orientation.Vertical)
+        v_splitter.setHandleWidth(1)
+
+        self._chart_container = QWidget()
+        self._chart_container.setStyleSheet("background: #080808;")
+        self._chart_layout = QVBoxLayout(self._chart_container)
+        self._chart_layout.setContentsMargins(0, 0, 0, 0)
+        self._chart_overlay = _SpinnerOverlay(self._chart_container)
+        v_splitter.addWidget(self._chart_container)
+
+        bottom = QSplitter(Qt.Orientation.Horizontal)
+        bottom.setHandleWidth(1)
+        self.panel_news = PanelNews()
+        self.panel_ai   = PanelAI()
+        bottom.addWidget(self.panel_news)
+        bottom.addWidget(self.panel_ai)
+        bottom.setSizes([520, 520])
+        v_splitter.addWidget(bottom)
+        v_splitter.setSizes([570, 330])
+
+        body.addWidget(v_splitter, stretch=1)
+        tab_layout.addLayout(body, stretch=1)
+        return tab
+
+    def _build_trading_header(self) -> QWidget:
+        """
+        Doua randuri vizuale deasupra chart-ului in Trading Desk:
+
+        Rand 1 (inalt 38px): "AI Commodity Analyzer"  —  centrat, font bold 17px
+        Rand 2 (inalt 30px): [Commodity name]  [Pret]  [dot]  —  stanga
+        """
+        container = QWidget()
+        container.setStyleSheet(
+            "background: #080808;"
+            "border-bottom: 1px solid #1C1C1C;"
+        )
+        vbox = QVBoxLayout(container)
+        vbox.setContentsMargins(0, 0, 0, 0)
+        vbox.setSpacing(0)
+
+        # Rand 1 — titlu app centrat
+        title_bar = QWidget()
+        title_bar.setFixedHeight(38)
+        title_row = QHBoxLayout(title_bar)
+        title_row.setContentsMargins(0, 0, 0, 0)
+
+        app_title = QLabel("AI Commodity Analyzer")
+        app_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        app_title.setStyleSheet(
+            "color: #F1F5F9;"
+            "font-size: 17px;"
+            "font-weight: 700;"
+            "letter-spacing: 0.2px;"
+        )
+        title_row.addWidget(app_title)
+        vbox.addWidget(title_bar)
+
+        # Rand 2 — commodity h_splitter.addWidget(left_split)
+
+        # Dreapta 70%: map container + overlay
+        self.map_container = QFrame()
+        self.map_container.setFrameShape(QFrame.Shape.NoFrame)
+        self.map_container.setStyleSheet("background: #080808;")
+        self._map_layout = QVBoxLayout(self.map_container)
+        self._map_layout.setContentsMargins(0, 0, 0, 0)
+
+        self._map_placeholder = QLabel("World map will appear here")
+        self._map_placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._map_placeholder.setStyleSheet("color: #374151; font-size: 13px;")
+        self._map_layout.addWidget(self._map_placeholder)
+
+        self._map_overlay = _SpinnerOverlay(self.map_container)
+        h_splitter.addWidget(self.map_container)
+
+        # 30 / 70 proportional split
+        h_splitter.setSizes([432, 1008])
+
+        outer.addWidget(h_splitter)
+        return tab
+
+    # ── Tab 1: Trading Desk ────────────────────────────────────────────────────
+
+    def _build_tab_trading(self) -> QWidget:
+        """
+        QVBoxLayout
+        ├── _build_trading_header()   (doua randuri: titlu + commodity/pret)
+        └── QHBoxLayout
+             ├── Sidebar (220px)
+             └── QSplitter(V)
+                  ├── chart_container  [+ _chart_overlay]
+                  └── QSplitter(H): panel_news / panel_ai
+
+        Colegul injecteaza graficul cu:
+            window.set_chart_widget(panel_chart)
+        """
+        tab = QWidget()
+        tab.setStyleSheet("background: #080808;")
+
+        tab_layout = QVBoxLayout(tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.setSpacing(0)
+
+        tab_layout.addWidget(self._build_trading_header())
+
+        # Body
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+
+        self.sidebar = Sidebar()
+        body.addWidget(self.sidebar)
+
+        v_splitter = QSplitter(Qt.Orientation.Vertical)
+        v_splitter.setHandleWidth(1)
+
+        self._chart_container = QWidget()
+        self._chart_container.setStyleSheet("background: #080808;")
+        self._chart_layout = QVBoxLayout(self._chart_container)
+        self._chart_layout.setContentsMargins(0, 0, 0, 0)
+        self._chart_overlay = _SpinnerOverlay(self._chart_container)
+        v_splitter.addWidget(self._chart_container)
+
+        bottom = QSplitter(Qt.Orientation.Horizontal)
+        bottom.setHandleWidth(1)
+        self.panel_news = PanelNews()
+        self.panel_ai   = PanelAI()
+        bottom.addWidget(self.panel_news)
+        bottom.addWidget(self.panel_ai)
+        bottom.setSizes([520, 520])
+        v_splitter.addWidget(bottom)
+        v_splitter.setSizes([570, 330])
+
+        body.addWidget(v_splitter, stretch=1)
+        tab_layout.addLayout(body, stretch=1)
+        return tab
+
+    def _build_trading_header(self) -> QWidget:
+        """
+        Doua randuri vizuale deasupra chart-ului in Trading Desk:
+
+        Rand 1 (inalt 38px): "AI Commodity Analyzer"  —  centrat, font bold 17px
+        Rand 2 (inalt 30px): [Commodity name]  [Pret]  [dot]  —  stanga
+        """
+        container = QWidget()
+        container.setStyleSheet(
+            "background: #080808;"
+            "border-bottom: 1px solid #1C1C1C;"
+        )
+        vbox = QVBoxLayout(container)
+        vbox.setContentsMargins(0, 0, 0, 0)
+        vbox.setSpacing(0)
+
+        # Rand 1 — titlu app centrat
+        title_bar = QWidget()
+        title_bar.setFixedHeight(38)
+        title_row = QHBoxLayout(title_bar)
+        title_row.setContentsMargins(0, 0, 0, 0)
+
+        app_title = QLabel("AI Commodity Analyzer")
+        app_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        app_title.setStyleSheet(
+            "color: #F1F5F9;"
+            "font-size: 17px;"
+            "font-weight: 700;"
+            "letter-spacing: 0.2px;"
+        )
+        title_row.addWidget(app_title)
+        vbox.addWidget(title_bar)
+
+        # Rand 2 — commodity name + pret, stanga
+        info_bar = QWidget()
+        info_bar.setFixedHeight(30)
+        info_bar.setStyleSheet("border-top: 1px solid #111111;")
+        info_row = QHBoxLayout(info_bar)
+        info_row.setContentsMargins(22, 0, 22, 0)
+        info_row.setSpacing(10)
+
+        # Simbol (mono, baby blue)
+        self._tb_symbol = QLabel("—")
+        self._tb_symbol.setStyleSheet(
+            "color: #93C5FD;"
+            "font-size: 12px;"
+            "font-weight: 600;"
+            "font-family: 'SF Mono', 'Menlo', monospace;"
+        )
+        info_row.addWidget(self._tb_symbol)
+
+        # Separator subtire
+        sep = QLabel("/")
+        sep.setStyleSheet("color: #1C1C1C; font-size: 12px;")
+        info_row.addWidget(sep)
+
+        # Numele comoditatii (ex: "Gold")
+        self._tb_name = QLabel("")
+        self._tb_name.setStyleSheet(
+            "color: #F1F5F9;"
+            "font-size: 13px;"
+            "font-weight: 600;"
+        )
+        info_row.addWidget(self._tb_name)
+
+        # Pretul curent (mono)
+        self._tb_price = QLabel("")
+        self._tb_price.setStyleSheet(
+            "color: #F1F5F9;"
+            "font-size: 13px;"
+            "font-weight: 500;"
+            "font-family: 'SF Mono', 'Menlo', monospace;"
+        )
+        info_row.addWidget(self._tb_price)
+
+        # Indicator dot 6x6
+        self._tb_dot = QLabel("")
+        self._tb_dot.setFixedSize(6, 6)
+        self._tb_dot.setStyleSheet("background: #1C1C1C; border-radius: 3px;")
+        info_row.addWidget(self._tb_dot)
+
+        info_row.addStretch()
+        vbox.addWidget(info_bar)
+
+        return container
+
+    # ── Public loading API ─────────────────────────────────────────────────────
+
+    def show_loading(self, is_loading: bool, message: str = "Fetching data...") -> None:
+        """
+        Arata sau ascunde overlay-ul animat (GIF spinner + mesaj).
+
+        Rutare automata dupa tab-ul activ:
+            Tab 0 (Macro)   -> _map_overlay
+            Tab 1 (Trading) -> _chart_overlay
+
+        Apelat de backend / QThread workers:
+            window.show_loading(True,  "Fetching market data...")
+            window.show_loading(False)
+        """
+        overlay = (
+            self._map_overlay if self._tabs.currentIndex() == 0
+            else self._chart_overlay
+        )
+        if is_loading:
+            overlay.show_loading(message)
+        else:
+            overlay.hide_loading()
+
+    # ── Injection API (neschimbat) ─────────────────────────────────────────────
+
+    def set_map_widget(self, widget: QWidget) -> None:
+        """Injecteaza widget harta in Tab 0. Scoate placeholder-ul la primul apel."""
+        if self._map_placeholder is not None:
+            self._map_placeholder.setParent(None)
+            self._map_placeholder = None
+        while self._map_layout.count():
+            item = self._map_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        self._map_layout.addWidget(widget)
+
+    def set_chart_widget(self, widget: QWidget) -> None:
+        """Injecteaza PanelChart (candlestick + toolbar) in Tab 1."""
+        while self._chart_layout.count():
+            item = self._chart_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        self._chart_layout.addWidget(widget)
+
+    # ── Trading Desk update contract (bridge.py — neschimbat) ─────────────────
+
+    def update_news(self, items: list[dict]) -> None:
+        self.panel_news.update_news(items)
+
+    def update_insight(self, text: str) -> None:
+        self.panel_ai.update_insight(text)
+
+    def set_fetching(self, symbol: str) -> None:
+        """Loading ON — apelat imediat dupa commodity_changed."""
+        self._current_symbol = symbol
+        self._tb_symbol.setText(symbol)
+        self._tb_name.setText("")
+        self._tb_pr name + pret, stanga
+        info_bar = QWidget()
+        info_bar.setFixedHeight(30)
+        info_bar.setStyleSheet("border-top: 1px solid #111111;")
+        info_row = QHBoxLayout(info_bar)
+        info_row.setContentsMargins(22, 0, 22, 0)
+        info_row.setSpacing(10)
+
+        # Simbol (mono, baby blue)
+        self._tb_symbol = QLabel("—")
+        self._tb_symbol.setStyleSheet(
+            "color: #93C5FD;"
+            "font-size: 12px;"
+            "font-weight: 600;"
+            "font-family: 'SF Mono', 'Menlo', monospace;"
+        )
+        info_row.addWidget(self._tb_symbol)
+
+        # Separator subtire
+        sep = QLabel("/")
+        sep.setStyleSheet("color: #1C1C1C; font-size: 12px;")
+        info_row.addWidget(sep)
+
+        # Numele comoditatii (ex: "Gold")
+        self._tb_name = QLabel("")
+        self._tb_name.setStyleSheet(
+            "color: #F1F5F9;"
+            "font-size: 13px;"
+            "font-weight: 600;"
+        )
+        info_row.addWidget(self._tb_name)
+
+        # Pretul curent (mono)
+        self._tb_price = QLabel("")
+        self._tb_price.setStyleSheet(
+            "color: #F1F5F9;"
+            "font-size: 13px;"
+            "font-weight: 500;"
+            "font-family: 'SF Mono', 'Menlo', monospace;"
+        )
+        info_row.addWidget(self._tb_price)
+
+        # Indicator dot 6x6
+        self._tb_dot = QLabel("")
+        self._tb_dot.setFixedSize(6, 6)
+        self._tb_dot.setStyleSheet("background: #1C1C1C; border-radius: 3px;")
+        info_row.addWidget(self._tb_dot)
+
+        info_row.addStretch()
+        vbox.addWidget(info_bar)
+
+        return container
+
+    # ── Public loading API ─────────────────────────────────────────────────────
+
+    def show_loading(self, is_loading: bool, message: str = "Fetching data...") -> None:
+        """
+        Arata sau ascunde overlay-ul animat (GIF spinner + mesaj).
+
+        Rutare automata dupa tab-ul activ:
+            Tab 0 (Macro)   -> _map_overlay
+            Tab 1 (Trading) -> _chart_overlay
+
+        Apelat de backend / QThread workers:
+            window.show_loading(True,  "Fetching market data...")
+            window.show_loading(False)
+        """
+        overlay = (
+            self._map_overlay if self._tabs.currentIndex() == 0
+            else self._chart_overlay
+        )
+        if is_loading:
+            overlay.show_loading(message)
+        else:
+            overlay.hide_loading()
+
+    # ── Injection API (neschimbat) ─────────────────────────────────────────────
+
+    def set_map_widget(self, widget: QWidget) -> None:
+        """Injecteaza widget harta in Tab 0. Scoate placeholder-ul la primul apel."""
+        if self._map_placeholder is not None:
+            self._map_placeholder.setParent(None)
+            self._map_placeholder = None
+        while self._map_layout.count():
+            item = self._map_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        self._map_layout.addWidget(widget)
+
+    def set_chart_widget(self, widget: QWidget) -> None:
+        """Injecteaza PanelChart (candlestick + toolbar) in Tab 1."""
+        while self._chart_layout.count():
+            item = self._chart_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+        self._chart_layout.addWidget(widget)
+
+    # ── Trading Desk update contract (bridge.py — neschimbat) ─────────────────
+
+    def update_news(self, items: list[dict]) -> None:
+        self.panel_news.update_news(items)
+
+    def update_insight(self, text: str) -> None:
+        self.panel_ai.update_insight(text)
+
+    def set_fetching(self, symbol: str) -> None:
+        """Loading ON — apelat imediat dupa commodity_changed."""
+        self._current_symbol = symbol
+        self._tb_symbol.setText(symbol)
+        self._tb_name.setText("")
+        self._tb_price.setText("loaice.setText("loading...")
+        self._tb_price.setStyleSheet(
+            "color: #374151; font-size: 13px; font-weight: 400;"
+            "font-family: 'SF Mono', 'Menlo', monospace;"
+        )
+        self._tb_dot.setStyleSheet("background: #93C5FD; border-radius: 3px;")
+        self._status_bar.showMessage(f"Fetching data for {symbol}...")
+        self.panel_ai.set_loading(True)
+        self._chart_overlay.show_loading("Fetching chart data...")
+
+    def set_loading(self, loading: bool) -> None:
+        """Apelat de bridge.py cand QThread termina."""
+        self.panel_ai.set_loading(loading)
+        if not loading:
+            self._chart_overlay.hide_loading()
+
+    def update_status(self, symbol: str, price: float | None) -> None:
+        """Actualizeaza header-ul Tab 1 cu pretul live."""
+        from config import SYMBOLS
+        ts = datetime.now().strftime("%H:%M:%S")
+        name = SYMBOLS.get(symbol, "")
+        self._current_symbol = symbol
+        self._tb_symbol.setText(symbol)
+        self._tb_name.setText(name)
+
+        if price is not None:
+            self._tb_price.setText(f"{price:,.3f}")
+            self._tb_price.setStyleSheet(
+                "color: #F1F5F9; font-size: 13px; font-weight: 500;"
+                "font-family: 'SF Mono', 'Menlo', monospace;"
+            )
+            self._tb_dot.setStyleSheet("background: #4ADE80; border-radius: 3px;")
+            self._status_bar.showMessage(
+                f"{symbol}    {name}    {price:,.3f}    {ts}"
+            )
+        else:
+            self._tb_price.setText("—")
+            self._tb_price.setStyleSheet(
+                "color: #374151; font-size: 13px; font-weight: 500;"
+                "font-family: 'SF Mono', 'Menlo', monospace;"
+            )
+            self._tb_dot.setStyleSheet("background: #1C1C1C; border-radius: 3px;")
+            self._status_bar.showMessage(f"{symbol}    {ts}")
+
+    # ── World Macro helpers ────────────────────────────────────────────────────
+
+    def update_macro_news(self, items: list[dict]) -> None:
+        self.macro_news.update_news(items)
+
+    def update_macro_insight(self, text: str) -> None:
+        self.macro_ai.update_insight(text)
+
+    def switch_to_macro(self) -> None:
+        self._tabs.setCurrentIndex(0)
+
+    def switch_to_trading(self) -> None:
+        self._tabs.setCurrentIndex(1)
+ding...")
+        self._tb_price.setStyleSheet(
+            "color: #374151; font-size: 13px; font-weight: 400;"
+            "font-family: 'SF Mono', 'Menlo', monospace;"
+        )
+        self._tb_dot.setStyleSheet("background: #93C5FD; border-radius: 3px;")
+        self._status_bar.showMessage(f"Fetching data for {symbol}...")
+        self.panel_ai.set_loading(True)
+        self._chart_overlay.show_loading("Fetching chart data...")
+
+    def set_loading(self, loading: bool) -> None:
+        """Apelat de bridge.py cand QThread termina."""
+        self.panel_ai.set_loading(loading)
+        if not loading:
+            self._chart_overlay.hide_loading()
+
+    def update_status(self, symbol: str, price: float | None) -> None:
+        """Actualizeaza header-ul Tab 1 cu pretul live."""
+        from config import SYMBOLS
+        ts = datetime.now().strftime("%H:%M:%S")
+        name = SYMBOLS.get(symbol, "")
+        self._current_symbol = symbol
+        self._tb_symbol.setText(symbol)
+        self._tb_name.setText(name)
+
+        if price is not None:
+            self._tb_price.setText(f"{price:,.3f}")
+            self._tb_price.setStyleSheet(
+                "color: #F1F5F9; font-size: 13px; font-weight: 500;"
+                "font-family: 'SF Mono', 'Menlo', monospace;"
+            )
+            self._tb_dot.setStyleSheet("background: #4ADE80; border-radius: 3px;")
+            self._status_bar.showMessage(
+                f"{symbol}    {name}    {price:,.3f}    {ts}"
+            )
+        else:
+            self._tb_price.setText("—")
+            self._tb_price.setStyleSheet(
+                "color: #374151; font-size: 13px; font-weight: 500;"
+                "font-family: 'SF Mono', 'Menlo', monospace;"
+            )
+            self._tb_dot.setStyleSheet("background: #1C1C1C; border-radius: 3px;")
+            self._status_bar.showMessage(f"{symbol}    {ts}")
+
+    # ── World Macro helpers ────────────────────────────────────────────────────
+
+    def update_macro_news(self, items: list[dict]) -> None:
+        self.macro_news.update_news(items)
+
+    def update_macro_insight(self, text: str) -> None:
+        self.macro_ai.update_insight(text)
+
+    def switch_to_macro(self) -> None:
+        self._tabs.setCurrentIndex(0)
+
+    def switch_to_trading(self) -> None:
+        self._tabs.setCurrentIndex(1)
+-e \n\n--- FILE: ./ui/sidebar.py ---\n
+-e \n\n--- FILE: ./ui/sidebar.py ---\n
+"""
+ui/sidebar.py — Clean Perplexity-style sidebar, no emoji, no unicode symbols.
+"""
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QListWidget, QListWidgetItem,
+    QPushButton, QLabel, QHBoxLayout,
+)
+from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QFont
+
+from config import SYMBOLS
+
+
+class Sidebar(QWidget):
+    commodity_changed  = pyqtSignal(str)  # primary — connect here
+    commodity_selected = pyqtSignal(str)  # compat — bridge.py uses this
+    refresh_clicked    = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(220)
+        self.setStyleSheet(
+            "background:#0D0D0D;"
+            "border-right:1px solid #1C1C1C;"
+        )
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        layout.addWidget(self._build_logo())
+        layout.addWidget(self._build_section_label("Markets"))
+        layout.addWidget(self._build_list(), stretch=1)
+        layout.addWidget(self._build_bottom())
+
+    def _build_logo(self) -> QWidget:
+        """App identity block — top of sidebar."""
+        container = QWidget()
+        container.setFixedHeight(64)
+        container.setStyleSheet(
+            "background:#080808;"
+            "border-bottom:1px solid #1C1C1C;"
+        )
+        row = QHBoxLayout(container)
+        row.setContentsMargins(16, 0, 16, 0)
+        row.setSpacing(10)
+
+        # Wordmark badge: "AI" in a small pill
+        badge = QLabel("AI")
+        badge.setFixedSize(32, 22)
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge.setStyleSheet(
+            "background:#1E3A5F;"
+            "color:#93C5FD;"
+            "border-radius:4px;"
+            "font-size:11px;"
+            "font-weight:700;"
+            "letter-spacing:1px;"
+        )
+        row.addWidget(badge)
+
+        # App name block
+        name_block = QVBoxLayout()
+        name_block.setSpacing(1)
+
+        top_line = QLabel("Commodity")
+        top_line.setStyleSheet(
+            "color:#F1F5F9;"
+            "font-size:13px;"
+            "font-weight:600;"
+            "letter-spacing:0.2px;"
+        )
+        bot_line = QLabel("Analyzer")
+        bot_line.setStyleSheet(
+            "color:#374151;"
+            "font-size:11px;"
+            "font-weight:400;"
+            "letter-spacing:0.5px;"
+        )
+        name_block.addWidget(top_line)
+        name_block.addWidget(bot_line)
+        row.addLayout(name_block)
+        row.addStretch()
+        return container
+
+    def _build_section_label(self, text: str) -> QWidget:
+        lbl = QLabel(text.upper())
+        lbl.setFixedHeight(32)
+        lbl.setContentsMargins(22, 10, 0, 0)
+        lbl.setStyleSheet(
+            "color:#374151;"
+            "font-size:10px;"
+            "font-weight:600;"
+            "letter-spacing:1.2px;"
+        )
+        return lbl
+
+    def _build_list(self) -> QListWidget:
+        self._list = QListWidget()
+        self._list.setSpacing(0)
+        self._list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._list.setStyleSheet(
+            "QListWidget { background:transparent; border:none; outline:none; }"
+            "QListWidget::item {"
+            "  padding:9px 16px;"
+            "  color:#6B7280;"
+            "  border-radius:6px;"
+            "  margin:1px 6px;"
+            "  font-size:13px;"
+            "}"
+            "QListWidget::item:hover { background:#111111; color:#D1D5DB; }"
+            "QListWidget::item:selected {"
+            "  background:#111111;"
+            "  color:#93C5FD;"
+            "  border-left:2px solid #93C5FD;"
+            "  padding-left:14px;"
+            "  font-weight:500;"
+            "}"
+        )
+        for ticker, name in SYMBOLS.items():
+            item = QListWidgetItem(name)
+            item.setData(Qt.ItemDataRole.UserRole, ticker)
+            item.setToolTip(ticker)
+            self._list.addItem(item)
+        self._list.currentItemChanged.connect(self._on_selection_changed)
+        retu"""
+ui/sidebar.py — Clean Perplexity-style sidebar, no emoji, no unicode symbols.
+"""
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QListWidget, QListWidgetItem,
+    QPushButton, QLabel, QHBoxLayout,
+)
+from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QFont
+
+from config import SYMBOLS
+
+
+class Sidebar(QWidget):
+    commodity_changed  = pyqtSignal(str)  # primary — connect here
+    commodity_selected = pyqtSignal(str)  # compat — bridge.py uses this
+    refresh_clicked    = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(220)
+        self.setStyleSheet(
+            "background:#0D0D0D;"
+            "border-right:1px solid #1C1C1C;"
+        )
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        layout.addWidget(self._build_logo())
+        layout.addWidget(self._build_section_label("Markets"))
+        layout.addWidget(self._build_list(), stretch=1)
+        layout.addWidget(self._build_bottom())
+
+    def _build_logo(self) -> QWidget:
+        """App identity block — top of sidebar."""
+        container = QWidget()
+        container.setFixedHeight(64)
+        container.setStyleSheet(
+            "background:#080808;"
+            "border-bottom:1px solid #1C1C1C;"
+        )
+        row = QHBoxLayout(container)
+        row.setContentsMargins(16, 0, 16, 0)
+        row.setSpacing(10)
+
+        # Wordmark badge: "AI" in a small pill
+        badge = QLabel("AI")
+        badge.setFixedSize(32, 22)
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge.setStyleSheet(
+            "background:#1E3A5F;"
+            "color:#93C5FD;"
+            "border-radius:4px;"
+            "font-size:11px;"
+            "font-weight:700;"
+            "letter-spacing:1px;"
+        )
+        row.addWidget(badge)
+
+        # App name block
+        name_block = QVBoxLayout()
+        name_block.setSpacing(1)
+
+        top_line = QLabel("Commodity")
+        top_line.setStyleSheet(
+            "color:#F1F5F9;"
+            "font-size:13px;"
+            "font-weight:600;"
+            "letter-spacing:0.2px;"
+        )
+        bot_line = QLabel("Analyzer")
+        bot_line.setStyleSheet(
+            "color:#374151;"
+            "font-size:11px;"
+            "font-weight:400;"
+            "letter-spacing:0.5px;"
+        )
+        name_block.addWidget(top_line)
+        name_block.addWidget(bot_line)
+        row.addLayout(name_block)
+        row.addStretch()
+        return container
+
+    def _build_section_label(self, text: str) -> QWidget:
+        lbl = QLabel(text.upper())
+        lbl.setFixedHeight(32)
+        lbl.setContentsMargins(22, 10, 0, 0)
+        lbl.setStyleSheet(
+            "color:#374151;"
+            "font-size:10px;"
+            "font-weight:600;"
+            "letter-spacing:1.2px;"
+        )
+        return lbl
+
+    def _build_list(self) -> QListWidget:
+        self._list = QListWidget()
+        self._list.setSpacing(0)
+        self._list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._list.setStyleSheet(
+            "QListWidget { background:transparent; border:none; outline:none; }"
+            "QListWidget::item {"
+            "  padding:9px 16px;"
+            "  color:#6B7280;"
+            "  border-radius:6px;"
+            "  margin:1px 6px;"
+            "  font-size:13px;"
+            "}"
+            "QListWidget::item:hover { background:#111111; color:#D1D5DB; }"
+            "QListWidget::item:selected {"
+            "  background:#111111;"
+            "  color:#93C5FD;"
+            "  border-left:2px solid #93C5FD;"
+            "  padding-left:14px;"
+            "  font-weight:500;"
+            "}"
+        )
+        for ticker, name in SYMBOLS.items():
+            item = QListWidgetItem(name)
+            item.setData(Qt.ItemDataRole.UserRole, ticker)
+            item.setToolTip(ticker)
+            self._list.addItem(item)
+        self._list.currentItemChanged.connect(self._on_selection_changed)
+        return self._list
+
+    def _build_bottom(self) -> QWidget:
+        container = QWidget()
+        container.setFixedHeight(60)
+        container.setStyleSheet(
+            "background:#080808;"
+            "border-top:1px solid #1C1C1C;"
+        )
+        row = QHBoxLayout(container)
+        row.setContentsMargins(12, 10, 12, 10)
+
+        btn = QPushButton("Refresh")
+        btn.setFixedHeight(32)
+        btn.setStyleSheet(
+            "QPushButton {"
+            "  background:#111111; color:#6B7280;"
+            "  border:1px solid #1C1C1C; border-radius:6px;"
+            "  font-size:12px; font-weight:500;"
+            "}"
+            "QPushButton:hover {"
+            "  background:#1C1C1C; color:#93C5FD;"
+            "  border-color:#93C5FD;"
+            "}"
+            "QPushButton:pressed { background:#1E3A5F; color:#93C5FD; }"
+        )
+        btn.clicked.connect(self.refresh_clicked.emit)
+        self._refresh_btn = btn
+        row.addWidget(btn)
+        return container
+
+    def _on_selection_changed(self, current: QListWidgetItem, _prev) -> None:
+        if current:
+            ticker = current.data(Qt.ItemDataRole.UserRole)
+            self.commodity_changed.emit(ticker)
+            self.commodity_selected.emit(ticker)
+
+    def select_first(self) -> None:
+        if self._list.count() > 0:
+            self._list.setCurrentRow(0)
+rn self._list
+
+    def _build_bottom(self) -> QWidget:
+        container = QWidget()
+        container.setFixedHeight(60)
+        container.setStyleSheet(
+            "background:#080808;"
+            "border-top:1px solid #1C1C1C;"
+        )
+        row = QHBoxLayout(container)
+        row.setContentsMargins(12, 10, 12, 10)
+
+        btn = QPushButton("Refresh")
+        btn.setFixedHeight(32)
+        btn.setStyleSheet(
+            "QPushButton {"
+            "  background:#111111; color:#6B7280;"
+            "  border:1px solid #1C1C1C; border-radius:6px;"
+            "  font-size:12px; font-weight:500;"
+            "}"
+            "QPushButton:hover {"
+            "  background:#1C1C1C; color:#93C5FD;"
+            "  border-color:#93C5FD;"
+            "}"
+            "QPushButton:pressed { background:#1E3A5F; color:#93C5FD; }"
+        )
+        btn.clicked.connect(self.refresh_clicked.emit)
+        self._refresh_btn = btn
+        row.addWidget(btn)
+        return container
+
+    def _on_selection_changed(self, current: QListWidgetItem, _prev) -> None:
+        if current:
+            ticker = current.data(Qt.ItemDataRole.UserRole)
+            self.commodity_changed.emit(ticker)
+            self.commodity_selected.emit(ticker)
+
+    def select_first(self) -> None:
+        if self._list.count() > 0:
+            self._list.setCurrentRow(0)
+-e \n\n--- FILE: ./ui/__init__.py ---\n
+-e \n\n--- FILE: ./ui/__init__.py ---\n
+# ui package
+# ui package
+-e \n\n--- FILE: ./ui/styles/theme.py ---\n
+-e \n\n--- FILE: ./ui/styles/theme.py ---\n
+"""
+ui/styles/theme.py — Perplexity-style: near-black + baby blue, zero emoji.
+
+Palette:
+  #080808  deepest bg         #93C5FD  baby blue (accent)
+  #0D0D0D  panel bg           #BFDBFE  baby blue light (hover)
+  #141414  card surface       #1E3A5F  baby blue dim (badge bg)
+  #1C1C1C  hover / border     #4ADE80  bullish green
+  #F1F5F9  text primary       #F87171  bearish red
+  #6B7280  text muted         #9CA3AF  text secondary
+"""
+import logging
+
+logger = logging.getLogger(__name__)
+
+_SANS = '"-apple-system", "Segoe UI", "Helvetica Neue", Arial, sans-serif'
+_MONO = '"SF Mono", "Menlo", "Courier New", monospace'
+
+_QSS = f"""
+QMainWindow, QDialog {{
+    background: #080808;
+    font-family: {_SANS};
+    font-size: 13px;
+}}
+QWidget {{
+    background: transparent;
+    color: #F1F5F9;
+    font-family: {_SANS};
+    font-size: 13px;
+}}
+
+/* Splitter */
+QSplitter::handle {{
+    background: #1C1C1C;
+}}
+
+/* Scrollbar */
+QScrollBar:vertical {{
+    background: transparent;
+    width: 5px;
+    margin: 0;
+}}
+QScrollBar::handle:vertical {{
+    background: #2A2A2A;
+    border-radius: 3px;
+    min-height: 24px;
+}}
+QScrollBar::handle:vertical:hover {{
+    background: #374151;
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    background: none;
+}}
+
+/* List widget */
+QListWidget {{
+    background: transparent;
+    border: none;
+    outline: none;
+}}
+QListWidget::item {{
+    padding: 9px 16px;
+    color: #6B7280;
+    border-radius: 6px;
+    margin: 1px 6px;
+    font-size: 13px;
+    font-weight: 400;
+}}
+QListWidget::item:hover {{
+    background: #111111;
+    color: #D1D5DB;
+}}
+QListWidget::item:selected {{
+    background: #111111;
+    color: #93C5FD;
+    border-left: 2px solid #93C5FD;
+    padding-left: 14px;
+    font-weight: 500;
+}}
+
+/* Buttons */
+QPushButton {{
+    background: #111111;
+    color: #6B7280;
+    border: 1px solid #1C1C1C;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-family: {_SANS};
+    font-size: 12px;
+    font-weight: 500;
+}}
+QPushButton:hover {{
+    background: #1C1C1C;
+    color: #D1D5DB;
+    border-color: #374151;
+}}
+QPushButton:pressed, QPushButton:checked {{
+    background: #1E3A5F;
+    border-color: #93C5FD;
+    color: #93C5FD;
+    font-weight: 600;
+}}
+
+/* TextEdit */
+QTextEdit {{
+    background: #0D0D0D;
+    color: #F1F5F9;
+    border: none;
+    font-family: {_MONO};
+    font-size: 13px;
+    padding: 20px;
+    selection-background-color: #1E3A5F;
+}}
+
+/* ComboBox */
+QComboBox {{
+    background: #111111;
+    color: #6B7280;
+    border: 1px solid #1C1C1C;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+}}
+QComboBox:hover {{
+    border-color: #374151;
+    color: #D1D5DB;
+}}
+QComboBox::drop-down {{ border: none; width: 18px; }}
+QComboBox::down-arrow {{
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #6B7280;
+    margin-right: 6px;
+}}
+QComboBox QAbstractItemView {{
+    background: #111111;
+    color: #D1D5DB;
+    border: 1px solid #1C1C1C;
+    selection-background-color: #1E3A5F;
+    outline: none;
+    padding: 4px;
+}}
+
+/* Status bar */
+QStatusBar {{
+    background: #080808;
+    color: #374151;
+    border-top: 1px solid #111111;
+    font-family: {_MONO};
+    font-size: 11px;
+    padding: 0 12px;
+}}
+
+/* Label fallback */
+QLabel {{
+    background: transparent;
+    color: #F1F5F9;
+}}
+
+/* Tooltip */
+QToolTip {{
+    background: #141414;
+    color: #F1F5F9;
+    border: 1px solid #1C1C1C;
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 12px;
+}}
+"""
+
+
+def apply_theme(app) -> None:
+    """Apply near-black + baby blue Perplexity theme."""
+    try:
+        import qdarktheme
+        qdarktheme.setup_theme("dark", custom_colors={"primary": "#93C5FD"})
+    except Exception as exc:
+        logger.warning("qdarktheme skipped: %s", exc)
+    app.setStyleSheet(_QSS)
+"""
+ui/styles/theme.py — Perplexity-style: near-black + baby blue, zero emoji.
+
+Palette:
+  #080808  deepest bg         #93C5FD  baby blue (accent)
+  #0D0D0D  panel bg           #BFDBFE  baby blue light (hover)
+  #141414  card surface       #1E3A5F  baby blue dim (badge bg)
+  #1C1C1C  hover / border     #4ADE80  bullish green
+  #F1F5F9  text primary       #F87171  bearish red
+  #6B7280  text muted         #9CA3AF  text secondary
+"""
+import logging
+
+logger = logging.getLogger(__name__)
+
+_SANS = '"-apple-system", "Segoe UI", "Helvetica Neue", Arial, sans-serif'
+_MONO = '"SF Mono", "Menlo", "Courier New", monospace'
+
+_QSS = f"""
+QMainWindow, QDialog {{
+    background: #080808;
+    font-family: {_SANS};
+    font-size: 13px;
+}}
+QWidget {{
+    background: transparent;
+    color: #F1F5F9;
+    font-family: {_SANS};
+    font-size: 13px;
+}}
+
+/* Splitter */
+QSplitter::handle {{
+    background: #1C1C1C;
+}}
+
+/* Scrollbar */
+QScrollBar:vertical {{
+    background: transparent;
+    width: 5px;
+    margin: 0;
+}}
+QScrollBar::handle:vertical {{
+    background: #2A2A2A;
+    border-radius: 3px;
+    min-height: 24px;
+}}
+QScrollBar::handle:vertical:hover {{
+    background: #374151;
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    background: none;
+}}
+
+/* List widget */
+QListWidget {{
+    background: transparent;
+    border: none;
+    outline: none;
+}}
+QListWidget::item {{
+    padding: 9px 16px;
+    color: #6B7280;
+    border-radius: 6px;
+    margin: 1px 6px;
+    font-size: 13px;
+    font-weight: 400;
+}}
+QListWidget::item:hover {{
+    background: #111111;
+    color: #D1D5DB;
+}}
+QListWidget::item:selected {{
+    background: #111111;
+    color: #93C5FD;
+    border-left: 2px solid #93C5FD;
+    padding-left: 14px;
+    font-weight: 500;
+}}
+
+/* Buttons */
+QPushButton {{
+    background: #111111;
+    color: #6B7280;
+    border: 1px solid #1C1C1C;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-family: {_SANS};
+    font-size: 12px;
+    font-weight: 500;
+}}
+QPushButton:hover {{
+    background: #1C1C1C;
+    color: #D1D5DB;
+    border-color: #374151;
+}}
+QPushButton:pressed, QPushButton:checked {{
+    background: #1E3A5F;
+    border-color: #93C5FD;
+    color: #93C5FD;
+    font-weight: 600;
+}}
+
+/* TextEdit */
+QTextEdit {{
+    background: #0D0D0D;
+    color: #F1F5F9;
+    border: none;
+    font-family: {_MONO};
+    font-size: 13px;
+    padding: 20px;
+    selection-background-color: #1E3A5F;
+}}
+
+/* ComboBox */
+QComboBox {{
+    background: #111111;
+    color: #6B7280;
+    border: 1px solid #1C1C1C;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+}}
+QComboBox:hover {{
+    border-color: #374151;
+    color: #D1D5DB;
+}}
+QComboBox::drop-down {{ border: none; width: 18px; }}
+QComboBox::down-arrow {{
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #6B7280;
+    margin-right: 6px;
+}}
+QComboBox QAbstractItemView {{
+    background: #111111;
+    color: #D1D5DB;
+    border: 1px solid #1C1C1C;
+    selection-background-color: #1E3A5F;
+    outline: none;
+    padding: 4px;
+}}
+
+/* Status bar */
+QStatusBar {{
+    background: #080808;
+    color: #374151;
+    border-top: 1px solid #111111;
+    font-family: {_MONO};
+    font-size: 11px;
+    padding: 0 12px;
+}}
+
+/* Label fallback */
+QLabel {{
+    background: transparent;
+    color: #F1F5F9;
+}}
+
+/* Tooltip */
+QToolTip {{
+    background: #141414;
+    color: #F1F5F9;
+    border: 1px solid #1C1C1C;
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 12px;
+}}
+"""
+
+
+def apply_theme(app) -> None:
+    """Apply near-black + baby blue Perplexity theme."""
+    try:
+        import qdarktheme
+        qdarktheme.setup_theme("dark", custom_colors={"primary": "#93C5FD"})
+    except Exception as exc:
+        logger.warning("qdarktheme skipped: %s", exc)
+    app.setStyleSheet(_QSS)
+-e \n\n--- FILE: ./ui/styles/__init__.py ---\n
+-e \n\n--- FILE: ./ui/styles/__init__.py ---\n
+# ui.styles package
+# ui.styles package
+-e \n\n--- FILE: ./ui/panel_news.py ---\n
+-e \n\n--- FILE: ./ui/panel_news.py ---\n
+"""
+ui/panel_news.py — Clean news cards, no emoji, no unicode arrows.
+# TODO: Dev3 — add click-to-open-URL when real news items have links
+"""
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QScrollArea, QLabel, QFrame, QHBoxLayout,
+)
+from PyQt6.QtCore import Qt
+
+# sentiment → (left-border color, badge bg, badge text, badge text color)
+_SENTIMENT = {
+    "bullish": ("#4ADE80", "rgba(74,222,128,0.10)", "Bullish", "#4ADE80"),
+    "bearish": ("#F87171", "rgba(248,113,113,0.10)", "Bearish", "#F87171"),
+    "neutral": ("#6B7280", "rgba(107,114,128,0.10)", "Neutral", "#6B7280"),
+}
+
+
+class _NewsCard(QFrame):
+    """Single news card with left sentiment accent strip."""
+
+    def __init__(self, item: dict, parent=None):
+        super().__init__(parent)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+
+        sentiment = item.get("sentiment", "neutral")
+        bar_color, badge_bg, badge_text, badge_fg = _SENTIMENT.get(
+            sentiment, _SENTIMENT["neutral"]
+        )
+
+        self.setObjectName("newsCard")
+        self.setStyleSheet(f"""
+            QFrame#newsCard {{
+                background: #111111;
+                border: 1px solid #1C1C1C;
+                border-left: 2px solid {bar_color};
+                border-radius: 8px;
+            }}
+            QFrame#newsCard:hover {{
+                background: #141414;
+                border-color: #262626;
+                border-left-color: {bar_color};
+            }}
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 11, 14, 13)
+        layout.setSpacing(5)
+
+        # Row 1: sentiment badge + source + date
+        top = QHBoxLayout()
+        top.setSpacing(8)
+
+        badge = QLabel(badge_text)
+        badge.setFixedHeight(17)
+        badge.setStyleSheet(
+            f"background:{badge_bg}; color:{badge_fg};"
+            "border-radius:4px; font-size:10px; font-weight:600;"
+            "padding:0 8px; letter-spacing:0.3px;"
+        )
+        top.addWidget(badge)
+        top.addStretch()
+
+        source    = item.get("source", "")
+        timestamp = item.get("timestamp", "")
+        meta_text = f"{source}  {timestamp}" if source and timestamp else (source or timestamp)
+        if meta_text:
+            meta = QLabel(meta_text)
+            meta.setStyleSheet("color:#374151; font-size:11px;")
+            top.addWidget(meta)
+        layout.addLayout(top)
+
+        # Row 2: headline
+        headline = item.get("title", item.get("headline", ""))
+        if headline:
+            lbl = QLabel(headline)
+            lbl.setWordWrap(True)
+            lbl.setStyleSheet(
+                "color:#F1F5F9; font-size:13px; font-weight:500; line-height:1.5;"
+            )
+            layout.addWidget(lbl)
+
+        # Row 3: summary
+        summary = item.get("summary", "")
+        if summary:
+            lbl2 = QLabel(summary)
+            lbl2.setWordWrap(True)
+            lbl2.setStyleSheet(
+                "color:#6B7280; font-size:12px; line-height:1.5;"
+            )
+            layout.addWidget(lbl2)
+
+
+class PanelNews(QWidget):
+    """Scrollable news panel."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("background:#0D0D0D;")
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._build_header())
+
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._scroll.setStyleSheet("border:none; background:#0D0D0D;")
+
+        self._content = QWidget()
+        self._content.setStyleSheet("background:#0D0D0D;")
+        self._content_layout = QVBoxLayout(self._content)
+        self._content_layout.setContentsMargins(12, 12, 12, 12)
+        self._content_layout.setSpacing(8)
+        self._content_layout.addStretch()
+
+        self._scroll.setWidget(self._content)
+        layout.addWidget(self._scroll, stretch=1)
+
+    def _bui"""
+ui/panel_news.py — Clean news cards, no emoji, no unicode arrows.
+# TODO: Dev3 — add click-to-open-URL when real news items have links
+"""
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QScrollArea, QLabel, QFrame, QHBoxLayout,
+)
+from PyQt6.QtCore import Qt
+
+# sentiment → (left-border color, badge bg, badge text, badge text color)
+_SENTIMENT = {
+    "bullish": ("#4ADE80", "rgba(74,222,128,0.10)", "Bullish", "#4ADE80"),
+    "bearish": ("#F87171", "rgba(248,113,113,0.10)", "Bearish", "#F87171"),
+    "neutral": ("#6B7280", "rgba(107,114,128,0.10)", "Neutral", "#6B7280"),
+}
+
+
+class _NewsCard(QFrame):
+    """Single news card with left sentiment accent strip."""
+
+    def __init__(self, item: dict, parent=None):
+        super().__init__(parent)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+
+        sentiment = item.get("sentiment", "neutral")
+        bar_color, badge_bg, badge_text, badge_fg = _SENTIMENT.get(
+            sentiment, _SENTIMENT["neutral"]
+        )
+
+        self.setObjectName("newsCard")
+        self.setStyleSheet(f"""
+            QFrame#newsCard {{
+                background: #111111;
+                border: 1px solid #1C1C1C;
+                border-left: 2px solid {bar_color};
+                border-radius: 8px;
+            }}
+            QFrame#newsCard:hover {{
+                background: #141414;
+                border-color: #262626;
+                border-left-color: {bar_color};
+            }}
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 11, 14, 13)
+        layout.setSpacing(5)
+
+        # Row 1: sentiment badge + source + date
+        top = QHBoxLayout()
+        top.setSpacing(8)
+
+        badge = QLabel(badge_text)
+        badge.setFixedHeight(17)
+        badge.setStyleSheet(
+            f"background:{badge_bg}; color:{badge_fg};"
+            "border-radius:4px; font-size:10px; font-weight:600;"
+            "padding:0 8px; letter-spacing:0.3px;"
+        )
+        top.addWidget(badge)
+        top.addStretch()
+
+        source    = item.get("source", "")
+        timestamp = item.get("timestamp", "")
+        meta_text = f"{source}  {timestamp}" if source and timestamp else (source or timestamp)
+        if meta_text:
+            meta = QLabel(meta_text)
+            meta.setStyleSheet("color:#374151; font-size:11px;")
+            top.addWidget(meta)
+        layout.addLayout(top)
+
+        # Row 2: headline
+        headline = item.get("title", item.get("headline", ""))
+        if headline:
+            lbl = QLabel(headline)
+            lbl.setWordWrap(True)
+            lbl.setStyleSheet(
+                "color:#F1F5F9; font-size:13px; font-weight:500; line-height:1.5;"
+            )
+            layout.addWidget(lbl)
+
+        # Row 3: summary
+        summary = item.get("summary", "")
+        if summary:
+            lbl2 = QLabel(summary)
+            lbl2.setWordWrap(True)
+            lbl2.setStyleSheet(
+                "color:#6B7280; font-size:12px; line-height:1.5;"
+            )
+            layout.addWidget(lbl2)
+
+
+class PanelNews(QWidget):
+    """Scrollable news panel."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet("background:#0D0D0D;")
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._build_header())
+
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self._scroll.setStyleSheet("border:none; background:#0D0D0D;")
+
+        self._content = QWidget()
+        self._content.setStyleSheet("background:#0D0D0D;")
+        self._content_layout = QVBoxLayout(self._content)
+        self._content_layout.setContentsMargins(12, 12, 12, 12)
+        self._content_layout.setSpacing(8)
+        self._content_layout.addStretch()
+
+        self._scroll.setWidget(self._content)
+        layout.addWidget(self._scroll, stretch=1)
+
+    def _build_header(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(40)
+        bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(18, 0, 18, 0)
+
+        title = QLabel("News Feed")
+        title.setStyleSheet(
+            "color:#9CA3AF; font-size:12px; font-weight:500; letter-spacing:0.3px;"
+        )
+        row.addWidget(title)
+        row.addStretch()
+
+        self._count_label = QLabel("")
+        self._count_label.setStyleSheet("color:#374151; font-size:11px;")
+        row.addWidget(self._count_label)
+        return bar
+
+    def update_news(self, news_data: list[dict]) -> None:
+        """
+        Public contract: accepts dicts with keys
+        headline|title, source, date|timestamp, sentiment, summary.
+        """
+        normalized = [
+            {
+                "title":     item.get("headline", item.get("title", "")),
+                "source":    item.get("source", ""),
+                "timestamp": item.get("date", item.get("timestamp", "")),
+                "sentiment": item.get("sentiment", "neutral"),
+                "summary":   item.get("summary", ""),
+            }
+            for item in news_data
+        ]
+        self.load_items(normalized)
+
+    def load_items(self, items: list[dict]) -> None:
+        while self._content_layout.count() > 1:
+            it = self._content_layout.takeAt(0)
+            if it.widget():
+                it.widget().deleteLater()
+
+        if not items:
+            ph = QLabel("No articles available.")
+            ph.setStyleSheet("color:#374151; font-size:13px; padding:24px;")
+            ph.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._content_layout.insertWidget(0, ph)
+            self._count_label.setText("")
+            return
+
+        for news_item in items:
+            card = _NewsCard(news_item)
+            self._content_layout.insertWidget(self._content_layout.count() - 1, card)
+
+        n = len(items)
+        self._count_label.setText(f"{n} article{'s' if n != 1 else ''}")
+ld_header(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(40)
+        bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(18, 0, 18, 0)
+
+        title = QLabel("News Feed")
+        title.setStyleSheet(
+            "color:#9CA3AF; font-size:12px; font-weight:500; letter-spacing:0.3px;"
+        )
+        row.addWidget(title)
+        row.addStretch()
+
+        self._count_label = QLabel("")
+        self._count_label.setStyleSheet("color:#374151; font-size:11px;")
+        row.addWidget(self._count_label)
+        return bar
+
+    def update_news(self, news_data: list[dict]) -> None:
+        """
+        Public contract: accepts dicts with keys
+        headline|title, source, date|timestamp, sentiment, summary.
+        """
+        normalized = [
+            {
+                "title":     item.get("headline", item.get("title", "")),
+                "source":    item.get("source", ""),
+                "timestamp": item.get("date", item.get("timestamp", "")),
+                "sentiment": item.get("sentiment", "neutral"),
+                "summary":   item.get("summary", ""),
+            }
+            for item in news_data
+        ]
+        self.load_items(normalized)
+
+    def load_items(self, items: list[dict]) -> None:
+        while self._content_layout.count() > 1:
+            it = self._content_layout.takeAt(0)
+            if it.widget():
+                it.widget().deleteLater()
+
+        if not items:
+            ph = QLabel("No articles available.")
+            ph.setStyleSheet("color:#374151; font-size:13px; padding:24px;")
+            ph.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._content_layout.insertWidget(0, ph)
+            self._count_label.setText("")
+            return
+
+        for news_item in items:
+            card = _NewsCard(news_item)
+            self._content_layout.insertWidget(self._content_layout.count() - 1, card)
+
+        n = len(items)
+        self._count_label.setText(f"{n} article{'s' if n != 1 else ''}")
+-e \n\n--- FILE: ./config.py ---\n
+-e \n\n--- FILE: ./config.py ---\n
+"""
+config.py — Load environment variables and expose app-wide constants.
+"""
+import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+NEWS_API_KEY: str = os.getenv("NEWS_API_KEY", "")
+GDELT_ENABLED: bool = os.getenv("GDELT_ENABLED", "false").lower() == "true"
+DEFAULT_SYMBOL: str = os.getenv("DEFAULT_SYMBOL", "GC=F")
+REFRESH_INTERVAL_SEC: int = int(os.getenv("REFRESH_INTERVAL_SEC", "30"))
+LLM_MODEL: str = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
+LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "1024"))
+
+SYMBOLS: dict[str, str] = {
+    "GC=F": "Gold",
+    "SI=F": "Silver",
+    "CL=F": "Crude Oil",
+    "NG=F": "Natural Gas",
+    "ZW=F": "Wheat",
+    "HG=F": "Copper",
+}
+
+if not ANTHROPIC_API_KEY:
+    logger.warning("ANTHROPIC_API_KEY not set — LLM calls will fail unless --mock is used")
+"""
+config.py — Load environment variables and expose app-wide constants.
+"""
+import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+NEWS_API_KEY: str = os.getenv("NEWS_API_KEY", "")
+GDELT_ENABLED: bool = os.getenv("GDELT_ENABLED", "false").lower() == "true"
+DEFAULT_SYMBOL: str = os.getenv("DEFAULT_SYMBOL", "GC=F")
+REFRESH_INTERVAL_SEC: int = int(os.getenv("REFRESH_INTERVAL_SEC", "30"))
+LLM_MODEL: str = os.getenv("LLM_MODEL", "claude-sonnet-4-20250514")
+LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "1024"))
+
+SYMBOLS: dict[str, str] = {
+    "GC=F": "Gold",
+    "SI=F": "Silver",
+    "CL=F": "Crude Oil",
+    "NG=F": "Natural Gas",
+    "ZW=F": "Wheat",
+    "HG=F": "Copper",
+}
+
+if not ANTHROPIC_API_KEY:
+    logger.warning("ANTHROPIC_API_KEY not set — LLM calls will fail unless --mock is used")
+-e \n\n--- FILE: ./bridge.py ---\n
+-e \n\n--- FILE: ./bridge.py ---\n
+"""
+bridge.py — AppBridge: connects UI events to data layer via QThread.
+"""
+import logging
+
+from PyQt6.QtCore import QThread, pyqtSignal, QObject
+
+logger = logging.getLogger(__name__)
+
+
+class _FetchWorker(QThread):
+    """
+    Background thread that fetches price data, news, and AI insight
+    without blocking the UI event loop.
+    """
+
+    data_ready = pyqtSignal(dict, list, str)   # (price_data, news, insight)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, symbol: str, use_mock: bool = False, parent=None):
+        super().__init__(parent)
+        self.symbol = symbol
+        self.use_mock = use_mock
+
+    def run(self) -> None:
+        try:
+            if self.use_mock:
+                from data import mock_data
+                price_data = mock_data.get_price_data(self.symbol)
+                news = mock_data.get_news(self.symbol)
+                insight = mock_data.get_ai_insight(self.symbol)
+            else:
+                from data import market, news as news_module, ai_engine
+                price_data = market.get_price_data(self.symbol) or {}
+                news = news_module.get_news(self.symbol)
+                insight = ai_engine.get_ai_insight(self.symbol, price_data, news)
+
+            self.data_ready.emit(price_data, news, insight)
+
+        except Exception as exc:
+            logger.error("FetchWorker error for %s: %s", self.symbol, exc)
+            self.error_occurred.emit(str(exc))
+
+
+class AppBridge(QObject):
+    """
+    Mediator between the UI (MainWindow, PanelChart) and the data layer.
+
+    Handles async data loading via QThread so the GUI stays responsive.
+    """
+
+    def __init__(self, main_window, panel_chart, use_mock: bool = False):
+        super().__init__()
+        self._window = main_window
+        self._panel_chart = panel_chart
+        self._use_mock = use_mock
+        self._worker: _FetchWorker | None = None
+
+        # Connect sidebar signals
+        self._window.sidebar.commodity_selected.connect(self.on_select)
+        self._window.sidebar.refresh_clicked.connect(self._on_refresh)
+
+        # Connect chart timeframe changes
+        self._panel_chart.timeframe_changed.connect(self._on_timeframe_changed)
+
+        self._current_symbol: str | None = None
+
+    def on_select(self, symbol: str) -> None:
+        """Called when the user selects a commodity from the sidebar."""
+        self._current_symbol = symbol
+        self._fetch(symbol)
+
+    def _on_refresh(self) -> None:
+        """Re-fetch data for the currently selected symbol."""
+        if self._current_symbol:
+            self._fetch(self._current_symbol)
+
+    def _on_timeframe_changed(self, timeframe: str) -> None:
+        """
+        Re-fetch when timeframe changes.
+        # TODO: Dev2 — pass timeframe to market.get_price_data(symbol, period_days=...)
+        """
+        logger.info("Timeframe changed to %s (re-fetch not yet wired)", timeframe)
+        if self._current_symbol:
+            self._fetch(self._current_symbol)
+
+    def _fetch(self, symbol: str) -> None:
+        """Start background fetch. Cancels any in-progress worker."""
+        if self._worker and self._worker.isRunning():
+            self._worker.quit()
+            self._worker.wait(500)
+
+        self._window.set_loading(True)
+        self._window.update_status(symbol, None)
+
+        self._worker = _FetchWorker(symbol, use_mock=self._use_mock)
+        self._worker.data_ready.connect(self._on_data_ready)
+        self._worker.error_occurred.connect(self._on_error)
+        self._worker.start()
+
+    def _on_data_ready(self, price_data: dict, news: list, insight: str) -> None:
+        symbol = price_data.get("symbol", self._current_symbol or "")
+
+        # Update chart
+        if price_data and price_data.get("close"):
+            self._panel_chart.load_data(price_data)
+            last_price = price_data["close"][-1] if price_data["close"] else None
+        else:
+            self._panel_chart.show_placeholder()
+            last_price = None
+
+        # Update panels
+        self._window.update_news(news)
+        self._window.update_insight(insight"""
+bridge.py — AppBridge: connects UI events to data layer via QThread.
+"""
+import logging
+
+from PyQt6.QtCore import QThread, pyqtSignal, QObject
+
+logger = logging.getLogger(__name__)
+
+
+class _FetchWorker(QThread):
+    """
+    Background thread that fetches price data, news, and AI insight
+    without blocking the UI event loop.
+    """
+
+    data_ready = pyqtSignal(dict, list, str)   # (price_data, news, insight)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, symbol: str, use_mock: bool = False, parent=None):
+        super().__init__(parent)
+        self.symbol = symbol
+        self.use_mock = use_mock
+
+    def run(self) -> None:
+        try:
+            if self.use_mock:
+                from data import mock_data
+                price_data = mock_data.get_price_data(self.symbol)
+                news = mock_data.get_news(self.symbol)
+                insight = mock_data.get_ai_insight(self.symbol)
+            else:
+                from data import market, news as news_module, ai_engine
+                price_data = market.get_price_data(self.symbol) or {}
+                news = news_module.get_news(self.symbol)
+                insight = ai_engine.get_ai_insight(self.symbol, price_data, news)
+
+            self.data_ready.emit(price_data, news, insight)
+
+        except Exception as exc:
+            logger.error("FetchWorker error for %s: %s", self.symbol, exc)
+            self.error_occurred.emit(str(exc))
+
+
+class AppBridge(QObject):
+    """
+    Mediator between the UI (MainWindow, PanelChart) and the data layer.
+
+    Handles async data loading via QThread so the GUI stays responsive.
+    """
+
+    def __init__(self, main_window, panel_chart, use_mock: bool = False):
+        super().__init__()
+        self._window = main_window
+        self._panel_chart = panel_chart
+        self._use_mock = use_mock
+        self._worker: _FetchWorker | None = None
+
+        # Connect sidebar signals
+        self._window.sidebar.commodity_selected.connect(self.on_select)
+        self._window.sidebar.refresh_clicked.connect(self._on_refresh)
+
+        # Connect chart timeframe changes
+        self._panel_chart.timeframe_changed.connect(self._on_timeframe_changed)
+
+        self._current_symbol: str | None = None
+
+    def on_select(self, symbol: str) -> None:
+        """Called when the user selects a commodity from the sidebar."""
+        self._current_symbol = symbol
+        self._fetch(symbol)
+
+    def _on_refresh(self) -> None:
+        """Re-fetch data for the currently selected symbol."""
+        if self._current_symbol:
+            self._fetch(self._current_symbol)
+
+    def _on_timeframe_changed(self, timeframe: str) -> None:
+        """
+        Re-fetch when timeframe changes.
+        # TODO: Dev2 — pass timeframe to market.get_price_data(symbol, period_days=...)
+        """
+        logger.info("Timeframe changed to %s (re-fetch not yet wired)", timeframe)
+        if self._current_symbol:
+            self._fetch(self._current_symbol)
+
+    def _fetch(self, symbol: str) -> None:
+        """Start background fetch. Cancels any in-progress worker."""
+        if self._worker and self._worker.isRunning():
+            self._worker.quit()
+            self._worker.wait(500)
+
+        self._window.set_loading(True)
+        self._window.update_status(symbol, None)
+
+        self._worker = _FetchWorker(symbol, use_mock=self._use_mock)
+        self._worker.data_ready.connect(self._on_data_ready)
+        self._worker.error_occurred.connect(self._on_error)
+        self._worker.start()
+
+    def _on_data_ready(self, price_data: dict, news: list, insight: str) -> None:
+        symbol = price_data.get("symbol", self._current_symbol or "")
+
+        # Update chart
+        if price_data and price_data.get("close"):
+            self._panel_chart.load_data(price_data)
+            last_price = price_data["close"][-1] if price_data["close"] else None
+        else:
+            self._panel_chart.show_placeholder()
+            last_price = None
+
+        # Update panels
+        self._window.update_news(news)
+        self._window.update_insight(insight)
+        self._window.set_loading(False)
+        self._window.update_status(symbol, last_price)
+
+    def _on_error(self, message: str) -> None:
+        logger.error("Fetch failed: %s", message)
+        self._window.set_loading(False)
+        self._window.update_insight(f"Data fetch failed:\n\n{message}")
+)
+        self._window.set_loading(False)
+        self._window.update_status(symbol, last_price)
+
+    def _on_error(self, message: str) -> None:
+        logger.error("Fetch failed: %s", message)
+        self._window.set_loading(False)
+        self._window.update_insight(f"Data fetch failed:\n\n{message}")
+-e \n\n--- FILE: ./charts/chart_engine.py ---\n
+-e \n\n--- FILE: ./charts/chart_engine.py ---\n
+"""
+charts/chart_engine.py — Build Plotly candlestick charts and return HTML strings.
+"""
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Perplexity palette — near-black + baby blue (matches ui/styles/theme.py)
+_BG     = "#080808"   # deepest bg
+_PANEL  = "#0D0D0D"   # panel bg
+_GRID   = "#1C1C1C"   # subtle grid
+_TEXT   = "#F1F5F9"   # primary text
+_MUTED  = "#6B7280"   # secondary text
+_ACCENT = "#93C5FD"   # baby blue
+_DIM    = "#374151"   # very muted
+_GREEN  = "#4ADE80"   # bullish
+_RED    = "#F87171"   # bearish
+
+
+def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
+    """
+    Build a dark-themed Plotly candlestick + volume HTML string.
+
+    Args:
+        ohlcv: dict with keys dates, open, high, low, close, volume, symbol, currency.
+        indicator: one of "none", "rsi", "macd", "bollinger".
+
+    Returns:
+        A self-contained HTML string that can be loaded into QWebEngineView.
+    """
+    try:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+
+        dates = ohlcv["dates"]
+        symbol = ohlcv.get("symbol", "")
+        currency = ohlcv.get("currency", "USD")
+
+        fig = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.03,
+            row_heights=[0.7, 0.3],
+        )
+
+        # Candlestick
+        fig.add_trace(
+            go.Candlestick(
+                x=dates,
+                open=ohlcv["open"],
+                high=ohlcv["high"],
+                low=ohlcv["low"],
+                close=ohlcv["close"],
+                name=symbol,
+                increasing_line_color=_GREEN,
+                decreasing_line_color=_RED,
+                increasing_fillcolor=_GREEN,
+                decreasing_fillcolor=_RED,
+                hovertext=[
+                    f"O: {o}  H: {h}  L: {l}  C: {c}"
+                    for o, h, l, c in zip(
+                        ohlcv["open"], ohlcv["high"], ohlcv["low"], ohlcv["close"]
+                    )
+                ],
+            ),
+            row=1,
+            col=1,
+        )
+
+        # Volume bars
+        colors = [
+            _GREEN if c >= o else _RED
+            for o, c in zip(ohlcv["open"], ohlcv["close"])
+        ]
+        fig.add_trace(
+            go.Bar(
+                x=dates,
+                y=ohlcv["volume"],
+                name="Volume",
+                marker_color=colors,
+                opacity=0.7,
+            ),
+            row=2,
+            col=1,
+        )
+
+        # Optional indicators
+        if indicator == "bollinger":
+            _add_bollinger_traces(fig, ohlcv)
+
+        _axis = dict(
+            gridcolor=_GRID,
+            linecolor=_GRID,
+            tickfont=dict(color=_MUTED, size=11, family="SF Mono, Menlo, monospace"),
+            showgrid=True,
+            zeroline=False,
+        )
+        layout = dict(
+            paper_bgcolor=_BG,
+            plot_bgcolor=_PANEL,
+            font=dict(color=_TEXT, family="SF Mono, Menlo, monospace", size=12),
+            title=dict(
+                text=f"<b>{symbol}</b>  <span style='color:{_MUTED};font-size:12px'>{currency}</span>",
+                font=dict(color=_ACCENT, size=15, family="SF Mono, Menlo, monospace"),
+                x=0.01,
+                xanchor="left",
+            ),
+            xaxis=dict(rangeslider=dict(visible=False), **_axis),
+            xaxis2=_axis.copy(),
+            yaxis=_axis.copy(),
+            yaxis2=_axis.copy(),
+            legend=dict(
+                bgcolor="rgba(0,0,0,0)",
+                bordercolor=_GRID,
+                font=dict(color=_MUTED, size=11),
+            ),
+            margin=dict(l=55, r=20, t=48, b=36),
+            hovermode="x unified",
+            hoverlabel=dict(
+                bgcolor="#111827",
+                bordercolor=_GRID,
+                font=dict(color=_TEXT, size=12, family="SF Mono, Menlo, monospace"),
+            ),
+        )
+        fig.update_layout(**layout)
+
+        return fig.to_html(
+            full_html=True,
+            include_plotlyjs="cdn",
+           """
+charts/chart_engine.py — Build Plotly candlestick charts and return HTML strings.
+"""
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Perplexity palette — near-black + baby blue (matches ui/styles/theme.py)
+_BG     = "#080808"   # deepest bg
+_PANEL  = "#0D0D0D"   # panel bg
+_GRID   = "#1C1C1C"   # subtle grid
+_TEXT   = "#F1F5F9"   # primary text
+_MUTED  = "#6B7280"   # secondary text
+_ACCENT = "#93C5FD"   # baby blue
+_DIM    = "#374151"   # very muted
+_GREEN  = "#4ADE80"   # bullish
+_RED    = "#F87171"   # bearish
+
+
+def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
+    """
+    Build a dark-themed Plotly candlestick + volume HTML string.
+
+    Args:
+        ohlcv: dict with keys dates, open, high, low, close, volume, symbol, currency.
+        indicator: one of "none", "rsi", "macd", "bollinger".
+
+    Returns:
+        A self-contained HTML string that can be loaded into QWebEngineView.
+    """
+    try:
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+
+        dates = ohlcv["dates"]
+        symbol = ohlcv.get("symbol", "")
+        currency = ohlcv.get("currency", "USD")
+
+        fig = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.03,
+            row_heights=[0.7, 0.3],
+        )
+
+        # Candlestick
+        fig.add_trace(
+            go.Candlestick(
+                x=dates,
+                open=ohlcv["open"],
+                high=ohlcv["high"],
+                low=ohlcv["low"],
+                close=ohlcv["close"],
+                name=symbol,
+                increasing_line_color=_GREEN,
+                decreasing_line_color=_RED,
+                increasing_fillcolor=_GREEN,
+                decreasing_fillcolor=_RED,
+                hovertext=[
+                    f"O: {o}  H: {h}  L: {l}  C: {c}"
+                    for o, h, l, c in zip(
+                        ohlcv["open"], ohlcv["high"], ohlcv["low"], ohlcv["close"]
+                    )
+                ],
+            ),
+            row=1,
+            col=1,
+        )
+
+        # Volume bars
+        colors = [
+            _GREEN if c >= o else _RED
+            for o, c in zip(ohlcv["open"], ohlcv["close"])
+        ]
+        fig.add_trace(
+            go.Bar(
+                x=dates,
+                y=ohlcv["volume"],
+                name="Volume",
+                marker_color=colors,
+                opacity=0.7,
+            ),
+            row=2,
+            col=1,
+        )
+
+        # Optional indicators
+        if indicator == "bollinger":
+            _add_bollinger_traces(fig, ohlcv)
+
+        _axis = dict(
+            gridcolor=_GRID,
+            linecolor=_GRID,
+            tickfont=dict(color=_MUTED, size=11, family="SF Mono, Menlo, monospace"),
+            showgrid=True,
+            zeroline=False,
+        )
+        layout = dict(
+            paper_bgcolor=_BG,
+            plot_bgcolor=_PANEL,
+            font=dict(color=_TEXT, family="SF Mono, Menlo, monospace", size=12),
+            title=dict(
+                text=f"<b>{symbol}</b>  <span style='color:{_MUTED};font-size:12px'>{currency}</span>",
+                font=dict(color=_ACCENT, size=15, family="SF Mono, Menlo, monospace"),
+                x=0.01,
+                xanchor="left",
+            ),
+            xaxis=dict(rangeslider=dict(visible=False), **_axis),
+            xaxis2=_axis.copy(),
+            yaxis=_axis.copy(),
+            yaxis2=_axis.copy(),
+            legend=dict(
+                bgcolor="rgba(0,0,0,0)",
+                bordercolor=_GRID,
+                font=dict(color=_MUTED, size=11),
+            ),
+            margin=dict(l=55, r=20, t=48, b=36),
+            hovermode="x unified",
+            hoverlabel=dict(
+                bgcolor="#111827",
+                bordercolor=_GRID,
+                font=dict(color=_TEXT, size=12, family="SF Mono, Menlo, monospace"),
+            ),
+        )
+        fig.update_layout(**layout)
+
+        return fig.to_html(
+            full_html=True,
+            include_plotlyjs="cdn",
+            config={"displayModeBar": False},
+        )
+
+    except Exception as exc:
+        logger.error("chart_engine error: %s", exc)
+        return _error_html(str(exc))
+
+
+def _add_bollinger_traces(fig, ohlcv: dict) -> None:
+    """Add Bollinger Band traces to an existing figure."""
+    try:
+        import pandas as pd
+        from charts.indicators import add_bollinger
+
+        df = pd.DataFrame({"close": ohlcv["close"]}, index=ohlcv["dates"])
+        df = add_bollinger(df)
+
+        import plotly.graph_objects as go
+
+        for col, color, name in [
+            ("bb_upper", _PURPLE, "BB Upper"),
+            ("bb_mid",   _ACCENT, "BB Mid"),
+            ("bb_lower", _PURPLE, "BB Lower"),
+        ]:
+            fig.add_trace(
+                go.Scatter(
+                    x=ohlcv["dates"],
+                    y=df[col].tolist(),
+                    name=name,
+                    line=dict(color=color, width=1, dash="dot"),
+                    opacity=0.7,
+                ),
+                row=1,
+                col=1,
+            )
+    except Exception as exc:
+        logger.warning("Failed to add Bollinger bands: %s", exc)
+
+
+def _error_html(message: str) -> str:
+    return f"""<!DOCTYPE html>
+<html>
+<body style="background:{_BG};color:{_RED};
+             font-family:'SF Mono',Menlo,monospace;padding:40px;margin:0;">
+  <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Chart Error</div>
+  <pre style="color:{_MUTED};font-size:12px;line-height:1.6;">{message}</pre>
+</body></html>"""
+
+
+PLACEHOLDER_HTML = f"""<!DOCTYPE html>
+<html>
+<body style="background:{_BG};margin:0;height:100vh;
+             display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+    <div style="width:40px;height:40px;background:#111111;border:1px solid #1C1C1C;
+                border-radius:8px;margin:0 auto 20px;display:flex;
+                align-items:center;justify-content:center;">
+      <span style="color:{_ACCENT};font-size:18px;font-weight:700;
+                   font-family:'SF Mono',Menlo,monospace;">C</span>
+    </div>
+    <div style="font-size:14px;font-weight:500;color:{_TEXT};letter-spacing:0.3px;">
+      Select a commodity
+    </div>
+    <div style="font-size:12px;color:{_MUTED};margin-top:6px;">
+      Choose from the sidebar to load chart data
+    </div>
+  </div>
+</body></html>"""
+ config={"displayModeBar": False},
+        )
+
+    except Exception as exc:
+        logger.error("chart_engine error: %s", exc)
+        return _error_html(str(exc))
+
+
+def _add_bollinger_traces(fig, ohlcv: dict) -> None:
+    """Add Bollinger Band traces to an existing figure."""
+    try:
+        import pandas as pd
+        from charts.indicators import add_bollinger
+
+        df = pd.DataFrame({"close": ohlcv["close"]}, index=ohlcv["dates"])
+        df = add_bollinger(df)
+
+        import plotly.graph_objects as go
+
+        for col, color, name in [
+            ("bb_upper", _PURPLE, "BB Upper"),
+            ("bb_mid",   _ACCENT, "BB Mid"),
+            ("bb_lower", _PURPLE, "BB Lower"),
+        ]:
+            fig.add_trace(
+                go.Scatter(
+                    x=ohlcv["dates"],
+                    y=df[col].tolist(),
+                    name=name,
+                    line=dict(color=color, width=1, dash="dot"),
+                    opacity=0.7,
+                ),
+                row=1,
+                col=1,
+            )
+    except Exception as exc:
+        logger.warning("Failed to add Bollinger bands: %s", exc)
+
+
+def _error_html(message: str) -> str:
+    return f"""<!DOCTYPE html>
+<html>
+<body style="background:{_BG};color:{_RED};
+             font-family:'SF Mono',Menlo,monospace;padding:40px;margin:0;">
+  <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Chart Error</div>
+  <pre style="color:{_MUTED};font-size:12px;line-height:1.6;">{message}</pre>
+</body></html>"""
+
+
+PLACEHOLDER_HTML = f"""<!DOCTYPE html>
+<html>
+<body style="background:{_BG};margin:0;height:100vh;
+             display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;font-family:-apple-system,'Segoe UI',Arial,sans-serif;">
+    <div style="width:40px;height:40px;background:#111111;border:1px solid #1C1C1C;
+                border-radius:8px;margin:0 auto 20px;display:flex;
+                align-items:center;justify-content:center;">
+      <span style="color:{_ACCENT};font-size:18px;font-weight:700;
+                   font-family:'SF Mono',Menlo,monospace;">C</span>
+    </div>
+    <div style="font-size:14px;font-weight:500;color:{_TEXT};letter-spacing:0.3px;">
+      Select a commodity
+    </div>
+    <div style="font-size:12px;color:{_MUTED};margin-top:6px;">
+      Choose from the sidebar to load chart data
+    </div>
+  </div>
+</body></html>"""
+-e \n\n--- FILE: ./charts/__init__.py ---\n
+-e \n\n--- FILE: ./charts/__init__.py ---\n
+# charts package
+# charts package
+-e \n\n--- FILE: ./charts/indicators.py ---\n
+-e \n\n--- FILE: ./charts/indicators.py ---\n
+"""
+charts/indicators.py — Technical indicators computed on pandas DataFrames.
+# TODO: Dev2 — add more indicators (EMA, ATR, Stochastic)
+"""
+import pandas as pd
+import numpy as np
+
+
+def add_rsi(df: pd.DataFrame, period: int = 14) -> pd.Series:
+    """
+    Compute RSI and return it as a Series.
+
+    Args:
+        df: DataFrame with a 'close' column.
+        period: RSI lookback period (default 14).
+
+    Returns:
+        pd.Series of RSI values (0–100), same index as df.
+    """
+    close = df["close"].astype(float)
+    delta = close.diff()
+    gain = delta.clip(lower=0).rolling(window=period).mean()
+    loss = (-delta.clip(upper=0)).rolling(window=period).mean()
+    rs = gain / loss.replace(0, np.nan)
+    rsi = 100 - (100 / (1 + rs))
+    return rsi.rename("rsi")
+
+
+def add_macd(df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.DataFrame:
+    """
+    Compute MACD indicator columns.
+
+    Args:
+        df: DataFrame with a 'close' column.
+        fast: Fast EMA period (default 12).
+        slow: Slow EMA period (default 26).
+        signal: Signal line EMA period (default 9).
+
+    Returns:
+        df with added columns: macd, macd_signal, macd_hist.
+    """
+    close = df["close"].astype(float)
+    ema_fast = close.ewm(span=fast, adjust=False).mean()
+    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    df = df.copy()
+    df["macd"] = ema_fast - ema_slow
+    df["macd_signal"] = df["macd"].ewm(span=signal, adjust=False).mean()
+    df["macd_hist"] = df["macd"] - df["macd_signal"]
+    return df
+
+
+def add_bollinger(df: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> pd.DataFrame:
+    """
+    Compute Bollinger Bands.
+
+    Args:
+        df: DataFrame with a 'close' column.
+        period: Rolling window period (default 20).
+        std_dev: Number of standard deviations for bands (default 2).
+
+    Returns:
+        df with added columns: bb_mid, bb_upper, bb_lower.
+    """
+    close = df["close"].astype(float)
+    df = df.copy()
+    df["bb_mid"] = close.rolling(window=period).mean()
+    rolling_std = close.rolling(window=period).std()
+    df["bb_upper"] = df["bb_mid"] + std_dev * rolling_std
+    df["bb_lower"] = df["bb_mid"] - std_dev * rolling_std
+    return df
+"""
+charts/indicators.py — Technical indicators computed on pandas DataFrames.
+# TODO: Dev2 — add more indicators (EMA, ATR, Stochastic)
+"""
+import pandas as pd
+import numpy as np
+
+
+def add_rsi(df: pd.DataFrame, period: int = 14) -> pd.Series:
+    """
+    Compute RSI and return it as a Series.
+
+    Args:
+        df: DataFrame with a 'close' column.
+        period: RSI lookback period (default 14).
+
+    Returns:
+        pd.Series of RSI values (0–100), same index as df.
+    """
+    close = df["close"].astype(float)
+    delta = close.diff()
+    gain = delta.clip(lower=0).rolling(window=period).mean()
+    loss = (-delta.clip(upper=0)).rolling(window=period).mean()
+    rs = gain / loss.replace(0, np.nan)
+    rsi = 100 - (100 / (1 + rs))
+    return rsi.rename("rsi")
+
+
+def add_macd(df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.DataFrame:
+    """
+    Compute MACD indicator columns.
+
+    Args:
+        df: DataFrame with a 'close' column.
+        fast: Fast EMA period (default 12).
+        slow: Slow EMA period (default 26).
+        signal: Signal line EMA period (default 9).
+
+    Returns:
+        df with added columns: macd, macd_signal, macd_hist.
+    """
+    close = df["close"].astype(float)
+    ema_fast = close.ewm(span=fast, adjust=False).mean()
+    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    df = df.copy()
+    df["macd"] = ema_fast - ema_slow
+    df["macd_signal"] = df["macd"].ewm(span=signal, adjust=False).mean()
+    df["macd_hist"] = df["macd"] - df["macd_signal"]
+    return df
+
+
+def add_bollinger(df: pd.DataFrame, period: int = 20, std_dev: float = 2.0) -> pd.DataFrame:
+    """
+    Compute Bollinger Bands.
+
+    Args:
+        df: DataFrame with a 'close' column.
+        period: Rolling window period (default 20).
+        std_dev: Number of standard deviations for bands (default 2).
+
+    Returns:
+        df with added columns: bb_mid, bb_upper, bb_lower.
+    """
+    close = df["close"].astype(float)
+    df = df.copy()
+    df["bb_mid"] = close.rolling(window=period).mean()
+    rolling_std = close.rolling(window=period).std()
+    df["bb_upper"] = df["bb_mid"] + std_dev * rolling_std
+    df["bb_lower"] = df["bb_mid"] - std_dev * rolling_std
+    return df
+-e \n\n--- FILE: ./charts/world_map_engine.py ---\n
+-e \n\n--- FILE: ./charts/world_map_engine.py ---\n
+"""
+charts/world_map_engine.py — Plotly world map HTML for the Macro View tab.
+
+Adapted from world-monitor (github.com/cn620/world-monitor) data structure.
+Their NewsItem/Hotspot types (lat, lon, threat level) map directly to our
+scatter_geo markers.
+
+Event dict contract (matches world-monitor NewsItem + our mock_data format):
+    {
+        "title":      str,
+        "lat":        float,
+        "lon":        float,
+        "severity":   "high" | "medium" | "low",   # maps to world-monitor ThreatLevel
+        "category":   str,                          # e.g. "conflict", "energy", "market"
+        "country":    str,
+        "summary":    str,
+    }
+"""
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Palette — same as theme.py
+_BG     = "#080808"
+_PANEL  = "#0D0D0D"
+_GRID   = "#1C1C1C"
+_TEXT   = "#F1F5F9"
+_MUTED  = "#6B7280"
+_BLUE   = "#93C5FD"
+_GREEN  = "#4ADE80"
+_YELLOW = "#FCD34D"
+_RED    = "#F87171"
+
+_SEVERITY_COLOR = {
+    "high":   _RED,
+    "medium": _YELLOW,
+    "low":    _BLUE,
+}
+
+# Commodity-producing regions highlighted on the choropleth
+# iso_alpha_3 → intensity 0–1  (used for the base layer)
+_COMMODITY_EXPOSURE = {
+    "SAU": 1.0,   # Saudi Arabia — crude oil
+    "RUS": 0.9,   # Russia — oil / gas / wheat
+    "USA": 0.7,   # USA — crude / nat gas / wheat
+    "CHN": 0.6,   # China — copper demand
+    "AUS": 0.6,   # Australia — copper / gold
+    "ZAF": 0.5,   # South Africa — gold
+    "CHL": 0.5,   # Chile — copper
+    "IRN": 0.8,   # Iran — crude / geopolitical
+    "UKR": 0.7,   # Ukraine — wheat
+    "ARE": 0.6,   # UAE — oil
+    "NOR": 0.5,   # Norway — oil / gas
+    "CAN": 0.4,   # Canada — oil sands
+    "BRA": 0.4,   # Brazil — iron ore / soy
+    "PER": 0.4,   # Peru — copper / gold
+    "GHA": 0.3,   # Ghana — gold
+}
+
+
+def build_world_map(events: list[dict] | None = None) -> str:
+    """
+    Build a dark-themed Plotly world map and return a self-contained HTML string.
+
+    Args:
+        events: list of event dicts (see module docstring for contract).
+                Pass None to show only the commodity exposure layer.
+
+    Returns:
+        HTML string ready for QWebEngineView.setHtml()
+    """
+    try:
+        import plotly.graph_objects as go
+
+        fig = go.Figure()
+
+        # ── Layer 1: commodity exposure choropleth ───────────────────────────
+        countries  = list(_COMMODITY_EXPOSURE.keys())
+        intensities = list(_COMMODITY_EXPOSURE.values())
+
+        fig.add_trace(go.Choropleth(
+            locations=countries,
+            z=intensities,
+            locationmode="ISO-3",
+            colorscale=[
+                [0.0, "#0D0D0D"],
+                [0.3, "#0D2340"],
+                [0.7, "#0F3560"],
+                [1.0, "#1E3A5F"],
+            ],
+            showscale=False,
+            marker_line_color="#1C1C1C",
+            marker_line_width=0.5,
+            hovertemplate="<b>%{location}</b><extra></extra>",
+            name="Commodity Exposure",
+        ))
+
+        # ── Layer 2: geo-located events ──────────────────────────────────────
+        if events:
+            for severity, color in _SEVERITY_COLOR.items():
+                subset = [e for e in events if e.get("severity", "low") == severity]
+                if not subset:
+                    continue
+
+                fig.add_trace(go.Scattergeo(
+                    lat=[e["lat"] for e in subset],
+                    lon=[e["lon"] for e in subset],
+                    mode="markers",
+                    marker=dict(
+                        size=9,
+                        color=color,
+                        opacity=0.85,
+                        symbol="circle",
+                        line=dict(width=1, color=_BG),
+                    ),
+                    text=[
+                        f"<b>{e.get('title','')}</b><br>"
+                        f"{e.get('country','')} — {e.get('category','')}<br>"
+                        f"<i>{e.get('summary','')[:"""
+charts/world_map_engine.py — Plotly world map HTML for the Macro View tab.
+
+Adapted from world-monitor (github.com/cn620/world-monitor) data structure.
+Their NewsItem/Hotspot types (lat, lon, threat level) map directly to our
+scatter_geo markers.
+
+Event dict contract (matches world-monitor NewsItem + our mock_data format):
+    {
+        "title":      str,
+        "lat":        float,
+        "lon":        float,
+        "severity":   "high" | "medium" | "low",   # maps to world-monitor ThreatLevel
+        "category":   str,                          # e.g. "conflict", "energy", "market"
+        "country":    str,
+        "summary":    str,
+    }
+"""
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Palette — same as theme.py
+_BG     = "#080808"
+_PANEL  = "#0D0D0D"
+_GRID   = "#1C1C1C"
+_TEXT   = "#F1F5F9"
+_MUTED  = "#6B7280"
+_BLUE   = "#93C5FD"
+_GREEN  = "#4ADE80"
+_YELLOW = "#FCD34D"
+_RED    = "#F87171"
+
+_SEVERITY_COLOR = {
+    "high":   _RED,
+    "medium": _YELLOW,
+    "low":    _BLUE,
+}
+
+# Commodity-producing regions highlighted on the choropleth
+# iso_alpha_3 → intensity 0–1  (used for the base layer)
+_COMMODITY_EXPOSURE = {
+    "SAU": 1.0,   # Saudi Arabia — crude oil
+    "RUS": 0.9,   # Russia — oil / gas / wheat
+    "USA": 0.7,   # USA — crude / nat gas / wheat
+    "CHN": 0.6,   # China — copper demand
+    "AUS": 0.6,   # Australia — copper / gold
+    "ZAF": 0.5,   # South Africa — gold
+    "CHL": 0.5,   # Chile — copper
+    "IRN": 0.8,   # Iran — crude / geopolitical
+    "UKR": 0.7,   # Ukraine — wheat
+    "ARE": 0.6,   # UAE — oil
+    "NOR": 0.5,   # Norway — oil / gas
+    "CAN": 0.4,   # Canada — oil sands
+    "BRA": 0.4,   # Brazil — iron ore / soy
+    "PER": 0.4,   # Peru — copper / gold
+    "GHA": 0.3,   # Ghana — gold
+}
+
+
+def build_world_map(events: list[dict] | None = None) -> str:
+    """
+    Build a dark-themed Plotly world map and return a self-contained HTML string.
+
+    Args:
+        events: list of event dicts (see module docstring for contract).
+                Pass None to show only the commodity exposure layer.
+
+    Returns:
+        HTML string ready for QWebEngineView.setHtml()
+    """
+    try:
+        import plotly.graph_objects as go
+
+        fig = go.Figure()
+
+        # ── Layer 1: commodity exposure choropleth ───────────────────────────
+        countries  = list(_COMMODITY_EXPOSURE.keys())
+        intensities = list(_COMMODITY_EXPOSURE.values())
+
+        fig.add_trace(go.Choropleth(
+            locations=countries,
+            z=intensities,
+            locationmode="ISO-3",
+            colorscale=[
+                [0.0, "#0D0D0D"],
+                [0.3, "#0D2340"],
+                [0.7, "#0F3560"],
+                [1.0, "#1E3A5F"],
+            ],
+            showscale=False,
+            marker_line_color="#1C1C1C",
+            marker_line_width=0.5,
+            hovertemplate="<b>%{location}</b><extra></extra>",
+            name="Commodity Exposure",
+        ))
+
+        # ── Layer 2: geo-located events ──────────────────────────────────────
+        if events:
+            for severity, color in _SEVERITY_COLOR.items():
+                subset = [e for e in events if e.get("severity", "low") == severity]
+                if not subset:
+                    continue
+
+                fig.add_trace(go.Scattergeo(
+                    lat=[e["lat"] for e in subset],
+                    lon=[e["lon"] for e in subset],
+                    mode="markers",
+                    marker=dict(
+                        size=9,
+                        color=color,
+                        opacity=0.85,
+                        symbol="circle",
+                        line=dict(width=1, color=_BG),
+                    ),
+                    text=[
+                        f"<b>{e.get('title','')}</b><br>"
+                        f"{e.get('country','')} — {e.get('category','')}<br>"
+                        f"<i>{e.get('summary','')[:80]}…</i>"
+                        for e in subset
+                    ],
+                    hovertemplate="%{text}<extra></extra>",
+                    name=severity.capitalize(),
+                    showlegend=True,
+                ))
+
+        # ── Layout ───────────────────────────────────────────────────────────
+        fig.update_layout(
+            paper_bgcolor=_BG,
+            plot_bgcolor=_BG,
+            margin=dict(l=0, r=0, t=0, b=0),
+            geo=dict(
+                showframe=False,
+                showcoastlines=True,
+                coastlinecolor=_GRID,
+                showland=True,
+                landcolor="#111111",
+                showocean=True,
+                oceancolor=_PANEL,
+                showlakes=False,
+                showcountries=True,
+                countrycolor=_GRID,
+                bgcolor=_BG,
+                projection_type="natural earth",
+            ),
+            legend=dict(
+                bgcolor="rgba(0,0,0,0)",
+                font=dict(color=_MUTED, size=11),
+                x=0.01,
+                y=0.05,
+                bordercolor=_GRID,
+                borderwidth=1,
+            ),
+            hoverlabel=dict(
+                bgcolor="#141414",
+                bordercolor=_GRID,
+                font=dict(color=_TEXT, size=12),
+            ),
+        )
+
+        return fig.to_html(
+            full_html=True,
+            include_plotlyjs="cdn",
+            config={"displayModeBar": False, "scrollZoom": True},
+        )
+
+    except Exception as exc:
+        logger.error("world_map_engine error: %s", exc)
+        return _error_html(str(exc))
+
+
+def _error_html(msg: str) -> str:
+    return (
+        f'<html><body style="background:{_BG};color:{_RED};'
+        f'font-family:monospace;padding:32px;">'
+        f'<pre>{msg}</pre></body></html>'
+    )
+
+
+PLACEHOLDER_HTML = f"""<!DOCTYPE html>
+<html>
+<body style="background:{_BG};margin:0;height:100vh;
+             display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;font-family:-apple-system,Arial,sans-serif;">
+    <div style="font-size:14px;font-weight:500;color:{_TEXT};">
+      World Macro View
+    </div>
+    <div style="font-size:12px;color:{_MUTED};margin-top:6px;">
+      Loading map data...
+    </div>
+  </div>
+</body></html>"""
+80]}…</i>"
+                        for e in subset
+                    ],
+                    hovertemplate="%{text}<extra></extra>",
+                    name=severity.capitalize(),
+                    showlegend=True,
+                ))
+
+        # ── Layout ───────────────────────────────────────────────────────────
+        fig.update_layout(
+            paper_bgcolor=_BG,
+            plot_bgcolor=_BG,
+            margin=dict(l=0, r=0, t=0, b=0),
+            geo=dict(
+                showframe=False,
+                showcoastlines=True,
+                coastlinecolor=_GRID,
+                showland=True,
+                landcolor="#111111",
+                showocean=True,
+                oceancolor=_PANEL,
+                showlakes=False,
+                showcountries=True,
+                countrycolor=_GRID,
+                bgcolor=_BG,
+                projection_type="natural earth",
+            ),
+            legend=dict(
+                bgcolor="rgba(0,0,0,0)",
+                font=dict(color=_MUTED, size=11),
+                x=0.01,
+                y=0.05,
+                bordercolor=_GRID,
+                borderwidth=1,
+            ),
+            hoverlabel=dict(
+                bgcolor="#141414",
+                bordercolor=_GRID,
+                font=dict(color=_TEXT, size=12),
+            ),
+        )
+
+        return fig.to_html(
+            full_html=True,
+            include_plotlyjs="cdn",
+            config={"displayModeBar": False, "scrollZoom": True},
+        )
+
+    except Exception as exc:
+        logger.error("world_map_engine error: %s", exc)
+        return _error_html(str(exc))
+
+
+def _error_html(msg: str) -> str:
+    return (
+        f'<html><body style="background:{_BG};color:{_RED};'
+        f'font-family:monospace;padding:32px;">'
+        f'<pre>{msg}</pre></body></html>'
+    )
+
+
+PLACEHOLDER_HTML = f"""<!DOCTYPE html>
+<html>
+<body style="background:{_BG};margin:0;height:100vh;
+             display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;font-family:-apple-system,Arial,sans-serif;">
+    <div style="font-size:14px;font-weight:500;color:{_TEXT};">
+      World Macro View
+    </div>
+    <div style="font-size:12px;color:{_MUTED};margin-top:6px;">
+      Loading map data...
+    </div>
+  </div>
+</body></html>"""
+-e \n\n--- FILE: ./charts/panel_chart.py ---\n
+-e \n\n--- FILE: ./charts/panel_chart.py ---\n
+"""
+charts/panel_chart.py — Chart panel with timeframe toolbar and indicator selector.
+# TODO: Dev2 — wire timeframe buttons to re-fetch data for the selected period
+"""
+import logging
+
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, QLabel,
+)
+from PyQt6.QtCore import pyqtSignal
+
+from charts.chart_widget import ChartWidget
+
+logger = logging.getLogger(__name__)
+
+_TIMEFRAMES = ["1W", "1M", "3M", "6M", "1Y"]
+_INDICATORS = ["None", "Bollinger Bands", "RSI", "MACD"]
+
+
+class PanelChart(QWidget):
+    """
+    Chart panel combining ChartWidget with a timeframe/indicator toolbar.
+
+    Signals:
+        timeframe_changed(str): emitted when the user selects a different timeframe.
+    """
+
+    timeframe_changed = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._chart_widget = ChartWidget()
+        self._active_tf = "1M"
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._build_toolbar())
+        layout.addWidget(self._chart_widget, stretch=1)
+
+    def _build_toolbar(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(42)
+        bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
+        hbox = QHBoxLayout(bar)
+        hbox.setContentsMargins(18, 0, 18, 0)
+        hbox.setSpacing(4)
+
+        lbl = QLabel("Timeframe")
+        lbl.setStyleSheet(
+            "color:#374151; font-size:11px; font-weight:500;"
+            "letter-spacing:0.3px; margin-right:4px;"
+        )
+        hbox.addWidget(lbl)
+
+        _TF_BTN = (
+            "QPushButton {"
+            "  background:#111111; color:#6B7280;"
+            "  border:1px solid #1C1C1C; border-radius:5px;"
+            "  padding:2px 10px; font-size:12px; font-weight:500; min-width:34px;"
+            "}"
+            "QPushButton:hover { background:#1C1C1C; color:#D1D5DB; border-color:#262626; }"
+            "QPushButton:checked {"
+            "  background:#1E3A5F; border-color:#93C5FD;"
+            "  color:#93C5FD; font-weight:600;"
+            "}"
+        )
+        self._tf_buttons: dict[str, QPushButton] = {}
+        for tf in _TIMEFRAMES:
+            btn = QPushButton(tf)
+            btn.setCheckable(True)
+            btn.setChecked(tf == self._active_tf)
+            btn.setStyleSheet(_TF_BTN)
+            btn.clicked.connect(lambda checked, t=tf: self._on_timeframe(t))
+            hbox.addWidget(btn)
+            self._tf_buttons[tf] = btn
+
+        hbox.addSpacing(16)
+
+        lbl2 = QLabel("Indicator")
+        lbl2.setStyleSheet(
+            "color:#374151; font-size:11px; font-weight:500;"
+            "letter-spacing:0.3px; margin-right:4px;"
+        )
+        hbox.addWidget(lbl2)
+
+        self._indicator_combo = QComboBox()
+        self._indicator_combo.addItems(_INDICATORS)
+        self._indicator_combo.currentTextChanged.connect(self._on_indicator_change)
+        self._indicator_combo.setFixedWidth(140)
+        self._indicator_combo.setStyleSheet(
+            "QComboBox { background:#111111; color:#6B7280;"
+            "  border:1px solid #1C1C1C; border-radius:5px;"
+            "  padding:3px 10px; font-size:12px; }"
+            "QComboBox:hover { border-color:#262626; color:#D1D5DB; }"
+            "QComboBox QAbstractItemView {"
+            "  background:#111111; color:#D1D5DB;"
+            "  border:1px solid #1C1C1C; selection-background-color:#1E3A5F; }"
+        )
+        hbox.addWidget(self._indicator_combo)
+        hbox.addStretch()
+        return bar
+
+    def _on_timeframe(self, tf: str) -> None:
+        self._active_tf = tf
+        for name, btn in self._tf_buttons.items():
+            btn.setChecked(name == tf)
+        self.timeframe_changed.emit(tf)
+        # TODO: Dev2 — trigger re-fetch for the selected timeframe period
+
+    def _on_indicator_change(self, text: str) -> None:
+        mapping = {
+            "None": "none",
+            "Bollinger Bands": "bollinger",
+            "RSI"""
+charts/panel_chart.py — Chart panel with timeframe toolbar and indicator selector.
+# TODO: Dev2 — wire timeframe buttons to re-fetch data for the selected period
+"""
+import logging
+
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, QLabel,
+)
+from PyQt6.QtCore import pyqtSignal
+
+from charts.chart_widget import ChartWidget
+
+logger = logging.getLogger(__name__)
+
+_TIMEFRAMES = ["1W", "1M", "3M", "6M", "1Y"]
+_INDICATORS = ["None", "Bollinger Bands", "RSI", "MACD"]
+
+
+class PanelChart(QWidget):
+    """
+    Chart panel combining ChartWidget with a timeframe/indicator toolbar.
+
+    Signals:
+        timeframe_changed(str): emitted when the user selects a different timeframe.
+    """
+
+    timeframe_changed = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._chart_widget = ChartWidget()
+        self._active_tf = "1M"
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self._build_toolbar())
+        layout.addWidget(self._chart_widget, stretch=1)
+
+    def _build_toolbar(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(42)
+        bar.setStyleSheet("background:#080808; border-bottom:1px solid #1C1C1C;")
+        hbox = QHBoxLayout(bar)
+        hbox.setContentsMargins(18, 0, 18, 0)
+        hbox.setSpacing(4)
+
+        lbl = QLabel("Timeframe")
+        lbl.setStyleSheet(
+            "color:#374151; font-size:11px; font-weight:500;"
+            "letter-spacing:0.3px; margin-right:4px;"
+        )
+        hbox.addWidget(lbl)
+
+        _TF_BTN = (
+            "QPushButton {"
+            "  background:#111111; color:#6B7280;"
+            "  border:1px solid #1C1C1C; border-radius:5px;"
+            "  padding:2px 10px; font-size:12px; font-weight:500; min-width:34px;"
+            "}"
+            "QPushButton:hover { background:#1C1C1C; color:#D1D5DB; border-color:#262626; }"
+            "QPushButton:checked {"
+            "  background:#1E3A5F; border-color:#93C5FD;"
+            "  color:#93C5FD; font-weight:600;"
+            "}"
+        )
+        self._tf_buttons: dict[str, QPushButton] = {}
+        for tf in _TIMEFRAMES:
+            btn = QPushButton(tf)
+            btn.setCheckable(True)
+            btn.setChecked(tf == self._active_tf)
+            btn.setStyleSheet(_TF_BTN)
+            btn.clicked.connect(lambda checked, t=tf: self._on_timeframe(t))
+            hbox.addWidget(btn)
+            self._tf_buttons[tf] = btn
+
+        hbox.addSpacing(16)
+
+        lbl2 = QLabel("Indicator")
+        lbl2.setStyleSheet(
+            "color:#374151; font-size:11px; font-weight:500;"
+            "letter-spacing:0.3px; margin-right:4px;"
+        )
+        hbox.addWidget(lbl2)
+
+        self._indicator_combo = QComboBox()
+        self._indicator_combo.addItems(_INDICATORS)
+        self._indicator_combo.currentTextChanged.connect(self._on_indicator_change)
+        self._indicator_combo.setFixedWidth(140)
+        self._indicator_combo.setStyleSheet(
+            "QComboBox { background:#111111; color:#6B7280;"
+            "  border:1px solid #1C1C1C; border-radius:5px;"
+            "  padding:3px 10px; font-size:12px; }"
+            "QComboBox:hover { border-color:#262626; color:#D1D5DB; }"
+            "QComboBox QAbstractItemView {"
+            "  background:#111111; color:#D1D5DB;"
+            "  border:1px solid #1C1C1C; selection-background-color:#1E3A5F; }"
+        )
+        hbox.addWidget(self._indicator_combo)
+        hbox.addStretch()
+        return bar
+
+    def _on_timeframe(self, tf: str) -> None:
+        self._active_tf = tf
+        for name, btn in self._tf_buttons.items():
+            btn.setChecked(name == tf)
+        self.timeframe_changed.emit(tf)
+        # TODO: Dev2 — trigger re-fetch for the selected timeframe period
+
+    def _on_indicator_change(self, text: str) -> None:
+        mapping = {
+            "None": "none",
+            "Bollinger Bands": "bollinger",
+            "RSI": "rsi",
+            "MACD": "macd",
+        }
+        self._chart_widget.set_indicator(mapping.get(text, "none"))
+
+    def load_data(self, ohlcv: dict) -> None:
+        """Forward OHLCV data to the inner ChartWidget."""
+        self._chart_widget.load_data(ohlcv)
+
+    def show_placeholder(self) -> None:
+        self._chart_widget.show_placeholder()
+
+    @property
+    def chart_widget(self) -> ChartWidget:
+        return self._chart_widget
+": "rsi",
+            "MACD": "macd",
+        }
+        self._chart_widget.set_indicator(mapping.get(text, "none"))
+
+    def load_data(self, ohlcv: dict) -> None:
+        """Forward OHLCV data to the inner ChartWidget."""
+        self._chart_widget.load_data(ohlcv)
+
+    def show_placeholder(self) -> None:
+        self._chart_widget.show_placeholder()
+
+    @property
+    def chart_widget(self) -> ChartWidget:
+        return self._chart_widget
+-e \n\n--- FILE: ./charts/world_map_widget.py ---\n
+-e \n\n--- FILE: ./charts/world_map_widget.py ---\n
+"""
+charts/world_map_widget.py — QWebEngineView wrapper for the world macro map.
+
+Usage (in main.py, after window is created):
+    from charts.world_map_widget import WorldMapWidget
+    macro_map = WorldMapWidget()
+    window.set_map_widget(macro_map)
+
+    # When macro event data arrives:
+    macro_map.load_events(events_list)   # list[dict] — see world_map_engine contract
+
+    # Or just show commodity exposure layer:
+    macro_map.load_events([])
+"""
+import logging
+
+from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+
+from charts.world_map_engine import build_world_map, PLACEHOLDER_HTML
+
+logger = logging.getLogger(__name__)
+
+
+class WorldMapWidget(QWidget):
+    """
+    Self-contained world map widget powered by Plotly + QWebEngineView.
+
+    Data contract (matches world-monitor NewsItem / Hotspot structure):
+        {
+            "title":    str,
+            "lat":      float,
+            "lon":      float,
+            "severity": "high" | "medium" | "low",
+            "category": str,
+            "country":  str,
+            "summary":  str,
+        }
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._events: list[dict] = []
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self._view = QWebEngineView()
+        self._view.setHtml(PLACEHOLDER_HTML)
+        layout.addWidget(self._view)
+
+    def load_events(self, events: list[dict]) -> None:
+        """
+        Render the world map with geo-located events overlaid on the
+        commodity exposure choropleth.
+
+        Pass an empty list to show only the base layer.
+        """
+        self._events = events
+        try:
+            html = build_world_map(events)
+            self._view.setHtml(html)
+        except Exception as exc:
+            logger.error("WorldMapWidget render failed: %s", exc)
+
+    def refresh(self) -> None:
+        """Re-render with the last loaded events."""
+        self.load_events(self._events)
+"""
+charts/world_map_widget.py — QWebEngineView wrapper for the world macro map.
+
+Usage (in main.py, after window is created):
+    from charts.world_map_widget import WorldMapWidget
+    macro_map = WorldMapWidget()
+    window.set_map_widget(macro_map)
+
+    # When macro event data arrives:
+    macro_map.load_events(events_list)   # list[dict] — see world_map_engine contract
+
+    # Or just show commodity exposure layer:
+    macro_map.load_events([])
+"""
+import logging
+
+from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+
+from charts.world_map_engine import build_world_map, PLACEHOLDER_HTML
+
+logger = logging.getLogger(__name__)
+
+
+class WorldMapWidget(QWidget):
+    """
+    Self-contained world map widget powered by Plotly + QWebEngineView.
+
+    Data contract (matches world-monitor NewsItem / Hotspot structure):
+        {
+            "title":    str,
+            "lat":      float,
+            "lon":      float,
+            "severity": "high" | "medium" | "low",
+            "category": str,
+            "country":  str,
+            "summary":  str,
+        }
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._events: list[dict] = []
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self._view = QWebEngineView()
+        self._view.setHtml(PLACEHOLDER_HTML)
+        layout.addWidget(self._view)
+
+    def load_events(self, events: list[dict]) -> None:
+        """
+        Render the world map with geo-located events overlaid on the
+        commodity exposure choropleth.
+
+        Pass an empty list to show only the base layer.
+        """
+        self._events = events
+        try:
+            html = build_world_map(events)
+            self._view.setHtml(html)
+        except Exception as exc:
+            logger.error("WorldMapWidget render failed: %s", exc)
+
+    def refresh(self) -> None:
+        """Re-render with the last loaded events."""
+        self.load_events(self._events)
+-e \n\n--- FILE: ./charts/chart_widget.py ---\n
+-e \n\n--- FILE: ./charts/chart_widget.py ---\n
+"""
+charts/chart_widget.py — QWebEngineView wrapper for Plotly charts.
+"""
+import logging
+
+from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import QUrl
+
+from charts.chart_engine import build_candlestick, PLACEHOLDER_HTML
+
+logger = logging.getLogger(__name__)
+
+
+class ChartWidget(QWidget):
+    """
+    Widget that hosts a QWebEngineView and renders Plotly HTML charts.
+
+    Usage:
+        widget = ChartWidget()
+        widget.load_data(ohlcv_dict)
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._current_ohlcv: dict | None = None
+        self._current_indicator: str = "none"
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._web_view = QWebEngineView()
+        self._web_view.setHtml(PLACEHOLDER_HTML)
+        layout.addWidget(self._web_view)
+
+    def load_data(self, ohlcv: dict) -> None:
+        """Render candlestick chart from OHLCV data dict."""
+        self._current_ohlcv = ohlcv
+        self._render()
+
+    def set_indicator(self, name: str) -> None:
+        """Re-render chart with the selected indicator overlay."""
+        self._current_indicator = name
+        if self._current_ohlcv:
+            self._render()
+
+    def _render(self) -> None:
+        if not self._current_ohlcv:
+            return
+        try:
+            html = build_candlestick(self._current_ohlcv, indicator=self._current_indicator)
+            self._web_view.setHtml(html)
+        except Exception as exc:
+            logger.error("ChartWidget render failed: %s", exc)
+
+    def show_placeholder(self) -> None:
+        """Reset chart to the initial placeholder."""
+        self._current_ohlcv = None
+        self._web_view.setHtml(PLACEHOLDER_HTML)
+"""
+charts/chart_widget.py — QWebEngineView wrapper for Plotly charts.
+"""
+import logging
+
+from PyQt6.QtWidgets import QWidget, QVBoxLayout
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtCore import QUrl
+
+from charts.chart_engine import build_candlestick, PLACEHOLDER_HTML
+
+logger = logging.getLogger(__name__)
+
+
+class ChartWidget(QWidget):
+    """
+    Widget that hosts a QWebEngineView and renders Plotly HTML charts.
+
+    Usage:
+        widget = ChartWidget()
+        widget.load_data(ohlcv_dict)
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._current_ohlcv: dict | None = None
+        self._current_indicator: str = "none"
+        self._init_ui()
+
+    def _init_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self._web_view = QWebEngineView()
+        self._web_view.setHtml(PLACEHOLDER_HTML)
+        layout.addWidget(self._web_view)
+
+    def load_data(self, ohlcv: dict) -> None:
+        """Render candlestick chart from OHLCV data dict."""
+        self._current_ohlcv = ohlcv
+        self._render()
+
+    def set_indicator(self, name: str) -> None:
+        """Re-render chart with the selected indicator overlay."""
+        self._current_indicator = name
+        if self._current_ohlcv:
+            self._render()
+
+    def _render(self) -> None:
+        if not self._current_ohlcv:
+            return
+        try:
+            html = build_candlestick(self._current_ohlcv, indicator=self._current_indicator)
+            self._web_view.setHtml(html)
+        except Exception as exc:
+            logger.error("ChartWidget render failed: %s", exc)
+
+    def show_placeholder(self) -> None:
+        """Reset chart to the initial placeholder."""
+        self._current_ohlcv = None
+        self._web_view.setHtml(PLACEHOLDER_HTML)
+-e \n\n--- FILE: ./main.py ---\n
+-e \n\n--- FILE: ./main.py ---\n
+"""
+main.py — Entry point for AI Commodity Analyzer.
+
+Usage:
+    uv run main.py           # production mode (requires .env with API keys)
+    uv run main.py --mock    # demo mode with hardcoded data (no API keys needed)
+"""
+import sys
+import logging
+
+# QWebEngineWidgets MUST be imported before QApplication is created
+from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
+
+logger = logging.getLogger(__name__)
+
+
+def main() -> int:
+    use_mock = "--mock" in sys.argv
+
+    if use_mock:
+        print("▶ Running in MOCK mode — no API keys required")
+    else:
+        print("▶ Running in LIVE mode — requires .env with API keys")
+
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtCore import Qt
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("AI Commodity Analyzer")
+    app.setOrganizationName("HackTeam")
+
+    # Apply dark theme
+    from ui.styles.theme import apply_theme
+    apply_theme(app)
+
+    # Build main window
+    from ui.main_window import MainWindow
+    window = MainWindow()
+
+    # Tab 1 — Trading Desk: candlestick chart
+    from charts.panel_chart import PanelChart
+    panel_chart = PanelChart()
+    window.set_chart_widget(panel_chart)
+
+    # Tab 0 — World Macro View: geo map (mock events in --mock, empty base otherwise)
+    from charts.world_map_widget import WorldMapWidget
+    from data.mock_data import get_macro_events
+    macro_map = WorldMapWidget()
+    window.set_map_widget(macro_map)
+    if use_mock:
+        macro_map.load_events(get_macro_events())
+
+    # Wire Trading Desk signals → data layer
+    from bridge import AppBridge
+    bridge = AppBridge(window, panel_chart, use_mock=use_mock)
+
+    window.show()
+
+    # Auto-select the first commodity on startup
+    window.sidebar.select_first()
+
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+"""
+main.py — Entry point for AI Commodity Analyzer.
+
+Usage:
+    uv run main.py           # production mode (requires .env with API keys)
+    uv run main.py --mock    # demo mode with hardcoded data (no API keys needed)
+"""
+import sys
+import logging
+
+# QWebEngineWidgets MUST be imported before QApplication is created
+from PyQt6.QtWebEngineWidgets import QWebEngineView  # noqa: F401
+
+logger = logging.getLogger(__name__)
+
+
+def main() -> int:
+    use_mock = "--mock" in sys.argv
+
+    if use_mock:
+        print("▶ Running in MOCK mode — no API keys required")
+    else:
+        print("▶ Running in LIVE mode — requires .env with API keys")
+
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtCore import Qt
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("AI Commodity Analyzer")
+    app.setOrganizationName("HackTeam")
+
+    # Apply dark theme
+    from ui.styles.theme import apply_theme
+    apply_theme(app)
+
+    # Build main window
+    from ui.main_window import MainWindow
+    window = MainWindow()
+
+    # Tab 1 — Trading Desk: candlestick chart
+    from charts.panel_chart import PanelChart
+    panel_chart = PanelChart()
+    window.set_chart_widget(panel_chart)
+
+    # Tab 0 — World Macro View: geo map (mock events in --mock, empty base otherwise)
+    from charts.world_map_widget import WorldMapWidget
+    from data.mock_data import get_macro_events
+    macro_map = WorldMapWidget()
+    window.set_map_widget(macro_map)
+    if use_mock:
+        macro_map.load_events(get_macro_events())
+
+    # Wire Trading Desk signals → data layer
+    from bridge import AppBridge
+    bridge = AppBridge(window, panel_chart, use_mock=use_mock)
+
+    window.show()
+
+    # Auto-select the first commodity on startup
+    window.sidebar.select_first()
+
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+-e \n\n--- FILE: ./data/ai_engine.py ---\n
+-e \n\n--- FILE: ./data/ai_engine.py ---\n
+"""
+data/ai_engine.py — LLM-powered commodity analysis via Anthropic API.
+# TODO: Dev1 — refine CoT prompt template and system prompt
+"""
+import logging
+from typing import Optional
+
+import config
+
+logger = logging.getLogger(__name__)
+
+_SYSTEM_PROMPT = (
+    "You are a senior commodity market analyst with 20 years of experience. "
+    "You combine technical analysis, fundamental analysis, and macro-economic context. "
+    "Always structure your response as Chain-of-Thought reasoning: "
+    "Step 1 (Macro context) → Step 2 (Supply/demand) → Step 3 (Technical) → Conclusion with bias. "
+    "Be concise, data-driven, and avoid speculation without basis."
+)
+
+_PROMPT_TEMPLATE = """
+Analyze the following commodity: {symbol_name} ({symbol})
+
+## Recent Price Data (last 5 days)
+{price_summary}
+
+## Recent News
+{news_summary}
+
+Provide a Chain-of-Thought analysis concluding with a directional bias (bullish/bearish/neutral)
+and key price levels to watch. Keep response under {max_tokens} tokens.
+"""
+
+
+def get_ai_insight(
+    symbol: str,
+    price_data: Optional[dict],
+    news: list[dict],
+) -> str:
+    """
+    Generate an AI insight for a commodity using the Anthropic API.
+
+    # TODO: Dev1 — add streaming support for real-time token display in panel_ai
+    # TODO: Dev1 — cache results with a TTL to avoid redundant API calls on re-selection
+    """
+    if not config.ANTHROPIC_API_KEY:
+        return "⚠️ ANTHROPIC_API_KEY not configured. Set it in .env to enable AI insights."
+
+    prompt = _build_prompt(symbol, price_data, news)
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model=config.LLM_MODEL,
+            max_tokens=config.LLM_MAX_TOKENS,
+            system=_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return message.content[0].text
+    except Exception as exc:
+        logger.error("Anthropic API call failed: %s", exc)
+        return f"⚠️ AI analysis unavailable: {exc}"
+
+
+def _build_prompt(symbol: str, price_data: Optional[dict], news: list[dict]) -> str:
+    """Build the CoT prompt from price data and news items."""
+    from config import SYMBOLS
+
+    symbol_name = SYMBOLS.get(symbol, symbol)
+
+    # Summarise last 5 close prices
+    if price_data and price_data.get("close"):
+        last5 = list(zip(price_data["dates"][-5:], price_data["close"][-5:]))
+        price_summary = "\n".join(f"  {d}: {c}" for d, c in last5)
+    else:
+        price_summary = "  No price data available."
+
+    # Summarise news titles and sentiments
+    if news:
+        news_summary = "\n".join(
+            f"  [{item.get('sentiment','?').upper()}] {item.get('title','')}"
+            for item in news[:5]
+        )
+    else:
+        news_summary = "  No news available."
+
+    return _PROMPT_TEMPLATE.format(
+        symbol=symbol,
+        symbol_name=symbol_name,
+        price_summary=price_summary,
+        news_summary=news_summary,
+        max_tokens=config.LLM_MAX_TOKENS,
+    )
+"""
+data/ai_engine.py — LLM-powered commodity analysis via Anthropic API.
+# TODO: Dev1 — refine CoT prompt template and system prompt
+"""
+import logging
+from typing import Optional
+
+import config
+
+logger = logging.getLogger(__name__)
+
+_SYSTEM_PROMPT = (
+    "You are a senior commodity market analyst with 20 years of experience. "
+    "You combine technical analysis, fundamental analysis, and macro-economic context. "
+    "Always structure your response as Chain-of-Thought reasoning: "
+    "Step 1 (Macro context) → Step 2 (Supply/demand) → Step 3 (Technical) → Conclusion with bias. "
+    "Be concise, data-driven, and avoid speculation without basis."
+)
+
+_PROMPT_TEMPLATE = """
+Analyze the following commodity: {symbol_name} ({symbol})
+
+## Recent Price Data (last 5 days)
+{price_summary}
+
+## Recent News
+{news_summary}
+
+Provide a Chain-of-Thought analysis concluding with a directional bias (bullish/bearish/neutral)
+and key price levels to watch. Keep response under {max_tokens} tokens.
+"""
+
+
+def get_ai_insight(
+    symbol: str,
+    price_data: Optional[dict],
+    news: list[dict],
+) -> str:
+    """
+    Generate an AI insight for a commodity using the Anthropic API.
+
+    # TODO: Dev1 — add streaming support for real-time token display in panel_ai
+    # TODO: Dev1 — cache results with a TTL to avoid redundant API calls on re-selection
+    """
+    if not config.ANTHROPIC_API_KEY:
+        return "⚠️ ANTHROPIC_API_KEY not configured. Set it in .env to enable AI insights."
+
+    prompt = _build_prompt(symbol, price_data, news)
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model=config.LLM_MODEL,
+            max_tokens=config.LLM_MAX_TOKENS,
+            system=_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return message.content[0].text
+    except Exception as exc:
+        logger.error("Anthropic API call failed: %s", exc)
+        return f"⚠️ AI analysis unavailable: {exc}"
+
+
+def _build_prompt(symbol: str, price_data: Optional[dict], news: list[dict]) -> str:
+    """Build the CoT prompt from price data and news items."""
+    from config import SYMBOLS
+
+    symbol_name = SYMBOLS.get(symbol, symbol)
+
+    # Summarise last 5 close prices
+    if price_data and price_data.get("close"):
+        last5 = list(zip(price_data["dates"][-5:], price_data["close"][-5:]))
+        price_summary = "\n".join(f"  {d}: {c}" for d, c in last5)
+    else:
+        price_summary = "  No price data available."
+
+    # Summarise news titles and sentiments
+    if news:
+        news_summary = "\n".join(
+            f"  [{item.get('sentiment','?').upper()}] {item.get('title','')}"
+            for item in news[:5]
+        )
+    else:
+        news_summary = "  No news available."
+
+    return _PROMPT_TEMPLATE.format(
+        symbol=symbol,
+        symbol_name=symbol_name,
+        price_summary=price_summary,
+        news_summary=news_summary,
+        max_tokens=config.LLM_MAX_TOKENS,
+    )
+-e \n\n--- FILE: ./data/market.py ---\n
+-e \n\n--- FILE: ./data/market.py ---\n
+"""
+data/market.py — Live market data via yfinance.
+# TODO: Dev2 — implement live data fetching and error handling
+"""
+import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+def get_price_data(symbol: str, period_days: int = 30) -> Optional[dict]:
+    """
+    Fetch OHLCV data for the last `period_days` days using yfinance.
+
+    Returns a dict with keys: symbol, currency, dates, open, high, low, close, volume.
+    Returns None on failure.
+
+    # TODO: Dev2 — add period_days → yfinance interval mapping (1W=1d, 1M=1d, 3M=1d, 6M=1wk, 1Y=1wk)
+    """
+    try:
+        import yfinance as yf
+
+        end = datetime.today()
+        start = end - timedelta(days=period_days)
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(start=start.strftime("%Y-%m-%d"), end=end.strftime("%Y-%m-%d"))
+
+        if df.empty:
+            logger.warning("yfinance returned empty DataFrame for %s", symbol)
+            return None
+
+        return {
+            "symbol": symbol,
+            "currency": ticker.fast_info.get("currency", "USD"),
+            "dates": df.index.strftime("%Y-%m-%d").tolist(),
+            "open": df["Open"].round(3).tolist(),
+            "high": df["High"].round(3).tolist(),
+            "low": df["Low"].round(3).tolist(),
+            "close": df["Close"].round(3).tolist(),
+            "volume": df["Volume"].tolist(),
+        }
+    except Exception as exc:
+        logger.error("Failed to fetch price data for %s: %s", symbol, exc)
+        return None
+
+
+def get_current_price(symbol: str) -> Optional[float]:
+    """
+    Fetch the latest price for a symbol.
+
+    Returns None on failure.
+
+    # TODO: Dev2 — consider caching to avoid rate-limiting on frequent refreshes
+    """
+    try:
+        import yfinance as yf
+
+        ticker = yf.Ticker(symbol)
+        price = ticker.fast_info.get("last_price")
+        if price is None:
+            hist = ticker.history(period="1d")
+            if not hist.empty:
+                price = float(hist["Close"].iloc[-1])
+        return round(float(price), 3) if price else None
+    except Exception as exc:
+        logger.error("Failed to fetch current price for %s: %s", symbol, exc)
+        return None
+"""
+data/market.py — Live market data via yfinance.
+# TODO: Dev2 — implement live data fetching and error handling
+"""
+import logging
+from datetime import datetime, timedelta
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+def get_price_data(symbol: str, period_days: int = 30) -> Optional[dict]:
+    """
+    Fetch OHLCV data for the last `period_days` days using yfinance.
+
+    Returns a dict with keys: symbol, currency, dates, open, high, low, close, volume.
+    Returns None on failure.
+
+    # TODO: Dev2 — add period_days → yfinance interval mapping (1W=1d, 1M=1d, 3M=1d, 6M=1wk, 1Y=1wk)
+    """
+    try:
+        import yfinance as yf
+
+        end = datetime.today()
+        start = end - timedelta(days=period_days)
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(start=start.strftime("%Y-%m-%d"), end=end.strftime("%Y-%m-%d"))
+
+        if df.empty:
+            logger.warning("yfinance returned empty DataFrame for %s", symbol)
+            return None
+
+        return {
+            "symbol": symbol,
+            "currency": ticker.fast_info.get("currency", "USD"),
+            "dates": df.index.strftime("%Y-%m-%d").tolist(),
+            "open": df["Open"].round(3).tolist(),
+            "high": df["High"].round(3).tolist(),
+            "low": df["Low"].round(3).tolist(),
+            "close": df["Close"].round(3).tolist(),
+            "volume": df["Volume"].tolist(),
+        }
+    except Exception as exc:
+        logger.error("Failed to fetch price data for %s: %s", symbol, exc)
+        return None
+
+
+def get_current_price(symbol: str) -> Optional[float]:
+    """
+    Fetch the latest price for a symbol.
+
+    Returns None on failure.
+
+    # TODO: Dev2 — consider caching to avoid rate-limiting on frequent refreshes
+    """
+    try:
+        import yfinance as yf
+
+        ticker = yf.Ticker(symbol)
+        price = ticker.fast_info.get("last_price")
+        if price is None:
+            hist = ticker.history(period="1d")
+            if not hist.empty:
+                price = float(hist["Close"].iloc[-1])
+        return round(float(price), 3) if price else None
+    except Exception as exc:
+        logger.error("Failed to fetch current price for %s: %s", symbol, exc)
+        return None
+-e \n\n--- FILE: ./data/__init__.py ---\n
+-e \n\n--- FILE: ./data/__init__.py ---\n
+# data package
+# data package
+-e \n\n--- FILE: ./data/mock_data.py ---\n
+-e \n\n--- FILE: ./data/mock_data.py ---\n
+"""
+data/mock_data.py — Fully implemented mock data for demo/dev mode (--mock flag).
+No API keys required.
+"""
+from datetime import datetime, timedelta
+import random
+
+# Seed per symbol for reproducible "random" data
+_BASE_PRICES = {
+    "GC=F": 2320.0,   # Gold USD/oz
+    "SI=F": 27.5,     # Silver USD/oz
+    "CL=F": 82.0,     # Crude Oil USD/bbl
+    "NG=F": 2.15,     # Natural Gas USD/MMBtu
+    "ZW=F": 560.0,    # Wheat USD/bu (cents)
+    "HG=F": 4.35,     # Copper USD/lb
+}
+
+_CURRENCY = {
+    "GC=F": "USD/oz",
+    "SI=F": "USD/oz",
+    "CL=F": "USD/bbl",
+    "NG=F": "USD/MMBtu",
+    "ZW=F": "USd/bu",
+    "HG=F": "USD/lb",
+}
+
+_MOCK_NEWS = {
+    "GC=F": [
+        {
+            "title": "Gold surges as Fed signals rate pause amid inflation concerns",
+            "sentiment": "bullish",
+            "source": "Reuters",
+            "timestamp": "2026-04-03 14:22",
+            "summary": "Gold prices climbed 1.2% after Fed officials hinted at holding rates steady, boosting the appeal of non-yielding assets.",
+        },
+        {
+            "title": "Central banks continue record gold purchases in Q1 2026",
+            "sentiment": "bullish",
+            "source": "Bloomberg",
+            "timestamp": "2026-04-02 09:10",
+            "summary": "Global central banks bought 290 tonnes of gold in Q1, marking the fifth consecutive quarter of record purchases.",
+        },
+        {
+            "title": "Dollar strengthens on strong jobs data, pressures gold",
+            "sentiment": "bearish",
+            "source": "MarketWatch",
+            "timestamp": "2026-04-01 16:45",
+            "summary": "A stronger-than-expected payrolls report pushed the DXY index higher, applying downward pressure on gold prices.",
+        },
+        {
+            "title": "Gold ETF outflows signal short-term profit taking",
+            "sentiment": "bearish",
+            "source": "FT",
+            "timestamp": "2026-03-31 11:30",
+            "summary": "SPDR Gold Shares saw $340M in outflows this week as investors rotated into equities following tech earnings beats.",
+        },
+        {
+            "title": "Geopolitical tensions in Middle East support safe-haven demand",
+            "sentiment": "neutral",
+            "source": "AP",
+            "timestamp": "2026-03-30 08:00",
+            "summary": "Ongoing uncertainty in the region keeps safe-haven demand intact, though analysts see limited near-term upside.",
+        },
+    ],
+    "CL=F": [
+        {
+            "title": "OPEC+ maintains output cuts despite pressure from consumers",
+            "sentiment": "bullish",
+            "source": "Reuters",
+            "timestamp": "2026-04-03 13:00",
+            "summary": "The alliance extended its 2.2 million bpd voluntary cuts through Q2, tightening global supply outlook.",
+        },
+        {
+            "title": "US crude inventories fall sharply, prices rally",
+            "sentiment": "bullish",
+            "source": "EIA",
+            "timestamp": "2026-04-02 15:30",
+            "summary": "EIA weekly report showed a drawdown of 4.8M barrels, beating analyst estimates of -1.2M barrels.",
+        },
+        {
+            "title": "Recession fears dampen oil demand outlook for H2 2026",
+            "sentiment": "bearish",
+            "source": "IEA",
+            "timestamp": "2026-04-01 10:00",
+            "summary": "IEA cut its global oil demand growth forecast to 0.9 Mbpd from 1.3 Mbpd, citing slowing manufacturing activity.",
+        },
+        {
+            "title": "Libya restores 300k bpd of production after outages",
+            "sentiment": "bearish",
+            "source": "Bloomberg",
+            "timestamp": "2026-03-31 09:45",
+            "summary": "Libyan NOC confirmed restoration of key field output, adding to global supply and capping price gains.",
+        },
+        {
+            "title": "Shipping disruptions in Red Sea continue to affect WTI-Brent spread",
+            "sentiment": "neutral",
+            "source": "S&P Global",
+            "timestamp": "2026-03-30 12:00",
+            "summary": "Rerouting through t"""
+data/mock_data.py — Fully implemented mock data for demo/dev mode (--mock flag).
+No API keys required.
+"""
+from datetime import datetime, timedelta
+import random
+
+# Seed per symbol for reproducible "random" data
+_BASE_PRICES = {
+    "GC=F": 2320.0,   # Gold USD/oz
+    "SI=F": 27.5,     # Silver USD/oz
+    "CL=F": 82.0,     # Crude Oil USD/bbl
+    "NG=F": 2.15,     # Natural Gas USD/MMBtu
+    "ZW=F": 560.0,    # Wheat USD/bu (cents)
+    "HG=F": 4.35,     # Copper USD/lb
+}
+
+_CURRENCY = {
+    "GC=F": "USD/oz",
+    "SI=F": "USD/oz",
+    "CL=F": "USD/bbl",
+    "NG=F": "USD/MMBtu",
+    "ZW=F": "USd/bu",
+    "HG=F": "USD/lb",
+}
+
+_MOCK_NEWS = {
+    "GC=F": [
+        {
+            "title": "Gold surges as Fed signals rate pause amid inflation concerns",
+            "sentiment": "bullish",
+            "source": "Reuters",
+            "timestamp": "2026-04-03 14:22",
+            "summary": "Gold prices climbed 1.2% after Fed officials hinted at holding rates steady, boosting the appeal of non-yielding assets.",
+        },
+        {
+            "title": "Central banks continue record gold purchases in Q1 2026",
+            "sentiment": "bullish",
+            "source": "Bloomberg",
+            "timestamp": "2026-04-02 09:10",
+            "summary": "Global central banks bought 290 tonnes of gold in Q1, marking the fifth consecutive quarter of record purchases.",
+        },
+        {
+            "title": "Dollar strengthens on strong jobs data, pressures gold",
+            "sentiment": "bearish",
+            "source": "MarketWatch",
+            "timestamp": "2026-04-01 16:45",
+            "summary": "A stronger-than-expected payrolls report pushed the DXY index higher, applying downward pressure on gold prices.",
+        },
+        {
+            "title": "Gold ETF outflows signal short-term profit taking",
+            "sentiment": "bearish",
+            "source": "FT",
+            "timestamp": "2026-03-31 11:30",
+            "summary": "SPDR Gold Shares saw $340M in outflows this week as investors rotated into equities following tech earnings beats.",
+        },
+        {
+            "title": "Geopolitical tensions in Middle East support safe-haven demand",
+            "sentiment": "neutral",
+            "source": "AP",
+            "timestamp": "2026-03-30 08:00",
+            "summary": "Ongoing uncertainty in the region keeps safe-haven demand intact, though analysts see limited near-term upside.",
+        },
+    ],
+    "CL=F": [
+        {
+            "title": "OPEC+ maintains output cuts despite pressure from consumers",
+            "sentiment": "bullish",
+            "source": "Reuters",
+            "timestamp": "2026-04-03 13:00",
+            "summary": "The alliance extended its 2.2 million bpd voluntary cuts through Q2, tightening global supply outlook.",
+        },
+        {
+            "title": "US crude inventories fall sharply, prices rally",
+            "sentiment": "bullish",
+            "source": "EIA",
+            "timestamp": "2026-04-02 15:30",
+            "summary": "EIA weekly report showed a drawdown of 4.8M barrels, beating analyst estimates of -1.2M barrels.",
+        },
+        {
+            "title": "Recession fears dampen oil demand outlook for H2 2026",
+            "sentiment": "bearish",
+            "source": "IEA",
+            "timestamp": "2026-04-01 10:00",
+            "summary": "IEA cut its global oil demand growth forecast to 0.9 Mbpd from 1.3 Mbpd, citing slowing manufacturing activity.",
+        },
+        {
+            "title": "Libya restores 300k bpd of production after outages",
+            "sentiment": "bearish",
+            "source": "Bloomberg",
+            "timestamp": "2026-03-31 09:45",
+            "summary": "Libyan NOC confirmed restoration of key field output, adding to global supply and capping price gains.",
+        },
+        {
+            "title": "Shipping disruptions in Red Sea continue to affect WTI-Brent spread",
+            "sentiment": "neutral",
+            "source": "S&P Global",
+            "timestamp": "2026-03-30 12:00",
+            "summary": "Rerouting through the Cape of Good Hope adds 2 weeks to transit times, affecting regional pricing dynamics.",
+        },
+    ],
+}
+
+_MOCK_AI_INSIGHTS = {
+    "GC=F": (
+        "**Chain-of-Thought Analysis — Gold (GC=F)**\n\n"
+        "Step 1 — Macro context: The Fed's pause narrative is the dominant driver. "
+        "Real yields (10Y TIPS) sit at +1.8%, historically a headwind, yet gold holds above $2,300 "
+        "— indicating structural demand beyond rate sensitivity.\n\n"
+        "Step 2 — Supply/demand: Central bank buying (290t in Q1) provides a persistent bid. "
+        "ETF flows are mildly negative (-$340M), suggesting retail profit-taking, not structural selling.\n\n"
+        "Step 3 — Technical: Price is consolidating in a $2,290–$2,360 range. "
+        "RSI at 54 — neither overbought nor oversold. MACD shows a mild bullish crossover.\n\n"
+        "**Conclusion:** Bias is **moderately bullish** near-term. A break above $2,360 opens $2,400. "
+        "Key risk: stronger USD on hawkish Fed repricing."
+    ),
+    "SI=F": (
+        "**Chain-of-Thought Analysis — Silver (SI=F)**\n\n"
+        "Step 1 — Gold/Silver ratio at 84x, above the 5-year mean of 79x — silver appears undervalued relative to gold.\n\n"
+        "Step 2 — Industrial demand: Solar panel installations hit record levels globally; silver's role in PV cells "
+        "provides a structural demand tailwind not present in gold.\n\n"
+        "Step 3 — Technical: Silver broke above the $27 resistance level on above-average volume. "
+        "Next target: $28.50. Support at $26.20.\n\n"
+        "**Conclusion:** **Bullish** with a catch-up trade thesis. Silver tends to outperform gold in the latter "
+        "stages of a precious metals rally. Risk: industrial slowdown compressing the demand side."
+    ),
+    "CL=F": (
+        "**Chain-of-Thought Analysis — Crude Oil (CL=F)**\n\n"
+        "Step 1 — OPEC+ discipline remains intact. The group controls ~40% of global supply; "
+        "voluntary cuts of 2.2 Mbpd represent a significant market intervention.\n\n"
+        "Step 2 — Demand: IEA's downward revision is notable. China's manufacturing PMI fell to 49.1, "
+        "contraction territory, which historically correlates with reduced oil import volumes.\n\n"
+        "Step 3 — Technical: WTI oscillating around $82, the 200-day MA. Bollinger Bands are tightening, "
+        "indicating a volatility expansion is imminent.\n\n"
+        "**Conclusion:** **Neutral to slightly bullish**. Supply discipline offsets demand concerns near-term. "
+        "A break above $85 would turn technical picture clearly bullish."
+    ),
+    "NG=F": (
+        "**Chain-of-Thought Analysis — Natural Gas (NG=F)**\n\n"
+        "Step 1 — Storage levels are 12% above the 5-year average, a bearish overhang that limits sustained rallies.\n\n"
+        "Step 2 — Demand: LNG export capacity additions (Plaquemines LNG coming online) should absorb "
+        "domestic supply over a 12-18 month horizon, improving the supply/demand balance.\n\n"
+        "Step 3 — Seasonal: April-May is shoulder season (low heating, pre-summer cooling). "
+        "Historically the weakest period for nat gas prices.\n\n"
+        "**Conclusion:** **Bearish near-term, neutral medium-term**. Current prices around $2.15 may retest "
+        "$1.90 support before recovering. Watch weather forecasts closely."
+    ),
+    "ZW=F": (
+        "**Chain-of-Thought Analysis — Wheat (ZW=F)**\n\n"
+        "Step 1 — Black Sea export corridor remains a geopolitical risk factor. "
+        "Any disruption to Ukrainian exports (22% of global wheat trade) creates immediate price spikes.\n\n"
+        "Step 2 — US crop conditions: USDA rates 58% of winter wheat as good/excellent, above last year's 54%. "
+        "Domestic supply is favorable.\n\n"
+        "Step 3 — Technical: Wheat tested 550 support three times — triple bottom pattern is constructive. "
+        "A close above 575 would confirm a reversal.\n\n"
+        "**Conclusion:** **Neutral with upside optionality**. Tight global stocks-to-use ratio he Cape of Good Hope adds 2 weeks to transit times, affecting regional pricing dynamics.",
+        },
+    ],
+}
+
+_MOCK_AI_INSIGHTS = {
+    "GC=F": (
+        "**Chain-of-Thought Analysis — Gold (GC=F)**\n\n"
+        "Step 1 — Macro context: The Fed's pause narrative is the dominant driver. "
+        "Real yields (10Y TIPS) sit at +1.8%, historically a headwind, yet gold holds above $2,300 "
+        "— indicating structural demand beyond rate sensitivity.\n\n"
+        "Step 2 — Supply/demand: Central bank buying (290t in Q1) provides a persistent bid. "
+        "ETF flows are mildly negative (-$340M), suggesting retail profit-taking, not structural selling.\n\n"
+        "Step 3 — Technical: Price is consolidating in a $2,290–$2,360 range. "
+        "RSI at 54 — neither overbought nor oversold. MACD shows a mild bullish crossover.\n\n"
+        "**Conclusion:** Bias is **moderately bullish** near-term. A break above $2,360 opens $2,400. "
+        "Key risk: stronger USD on hawkish Fed repricing."
+    ),
+    "SI=F": (
+        "**Chain-of-Thought Analysis — Silver (SI=F)**\n\n"
+        "Step 1 — Gold/Silver ratio at 84x, above the 5-year mean of 79x — silver appears undervalued relative to gold.\n\n"
+        "Step 2 — Industrial demand: Solar panel installations hit record levels globally; silver's role in PV cells "
+        "provides a structural demand tailwind not present in gold.\n\n"
+        "Step 3 — Technical: Silver broke above the $27 resistance level on above-average volume. "
+        "Next target: $28.50. Support at $26.20.\n\n"
+        "**Conclusion:** **Bullish** with a catch-up trade thesis. Silver tends to outperform gold in the latter "
+        "stages of a precious metals rally. Risk: industrial slowdown compressing the demand side."
+    ),
+    "CL=F": (
+        "**Chain-of-Thought Analysis — Crude Oil (CL=F)**\n\n"
+        "Step 1 — OPEC+ discipline remains intact. The group controls ~40% of global supply; "
+        "voluntary cuts of 2.2 Mbpd represent a significant market intervention.\n\n"
+        "Step 2 — Demand: IEA's downward revision is notable. China's manufacturing PMI fell to 49.1, "
+        "contraction territory, which historically correlates with reduced oil import volumes.\n\n"
+        "Step 3 — Technical: WTI oscillating around $82, the 200-day MA. Bollinger Bands are tightening, "
+        "indicating a volatility expansion is imminent.\n\n"
+        "**Conclusion:** **Neutral to slightly bullish**. Supply discipline offsets demand concerns near-term. "
+        "A break above $85 would turn technical picture clearly bullish."
+    ),
+    "NG=F": (
+        "**Chain-of-Thought Analysis — Natural Gas (NG=F)**\n\n"
+        "Step 1 — Storage levels are 12% above the 5-year average, a bearish overhang that limits sustained rallies.\n\n"
+        "Step 2 — Demand: LNG export capacity additions (Plaquemines LNG coming online) should absorb "
+        "domestic supply over a 12-18 month horizon, improving the supply/demand balance.\n\n"
+        "Step 3 — Seasonal: April-May is shoulder season (low heating, pre-summer cooling). "
+        "Historically the weakest period for nat gas prices.\n\n"
+        "**Conclusion:** **Bearish near-term, neutral medium-term**. Current prices around $2.15 may retest "
+        "$1.90 support before recovering. Watch weather forecasts closely."
+    ),
+    "ZW=F": (
+        "**Chain-of-Thought Analysis — Wheat (ZW=F)**\n\n"
+        "Step 1 — Black Sea export corridor remains a geopolitical risk factor. "
+        "Any disruption to Ukrainian exports (22% of global wheat trade) creates immediate price spikes.\n\n"
+        "Step 2 — US crop conditions: USDA rates 58% of winter wheat as good/excellent, above last year's 54%. "
+        "Domestic supply is favorable.\n\n"
+        "Step 3 — Technical: Wheat tested 550 support three times — triple bottom pattern is constructive. "
+        "A close above 575 would confirm a reversal.\n\n"
+        "**Conclusion:** **Neutral with upside optionality**. Tight global stocks-to-use ratio (26%) provides "
+        "a floor. Geopolitical risk premium can re-enter quickly."
+    ),
+    "HG=F": (
+        "**Chain-of-Thought Analysis — Copper (HG=F)**\n\n"
+        "Step 1 — China is the marginal buyer (55% of global demand). Stimulus measures announced in March "
+        "targeting infrastructure spending are a positive catalyst.\n\n"
+        "Step 2 — Supply: Chilean production disruptions at Escondida (-8% YoY) are tightening concentrate "
+        "supply. TC/RCs at multi-decade lows confirm smelter squeeze.\n\n"
+        "Step 3 — Energy transition: Copper is essential for EVs (83kg/vehicle), grid infrastructure, "
+        "and renewables. Structural demand deficit expected by 2027.\n\n"
+        "**Conclusion:** **Bullish medium-to-long term**. Near-term may consolidate at $4.35 "
+        "before a move toward $4.70 if Chinese demand data confirms recovery."
+    ),
+}
+
+
+def get_price_data(symbol: str) -> dict:
+    """Return realistic mock OHLCV data for 30 days."""
+    random.seed(hash(symbol) % 10000)
+    base = _BASE_PRICES.get(symbol, 100.0)
+
+    today = datetime.today()
+    dates = [(today - timedelta(days=29 - i)).strftime("%Y-%m-%d") for i in range(30)]
+
+    opens, highs, lows, closes, volumes = [], [], [], [], []
+    price = base
+    for _ in dates:
+        change_pct = random.uniform(-0.012, 0.012)
+        open_ = round(price, 3)
+        close = round(price * (1 + change_pct), 3)
+        high = round(max(open_, close) * (1 + random.uniform(0, 0.005)), 3)
+        low = round(min(open_, close) * (1 - random.uniform(0, 0.005)), 3)
+        vol = int(random.uniform(80_000, 250_000))
+        opens.append(open_)
+        highs.append(high)
+        lows.append(low)
+        closes.append(close)
+        volumes.append(vol)
+        price = close
+
+    return {
+        "symbol": symbol,
+        "currency": _CURRENCY.get(symbol, "USD"),
+        "dates": dates,
+        "open": opens,
+        "high": highs,
+        "low": lows,
+        "close": closes,
+        "volume": volumes,
+    }
+
+
+def get_news(symbol: str) -> list[dict]:
+    """Return 5 mock news items for a given symbol."""
+    # Fall back to generic gold news if symbol not explicitly mocked
+    return _MOCK_NEWS.get(symbol, _MOCK_NEWS["GC=F"])
+
+
+def get_ai_insight(symbol: str) -> str:
+    """Return a mock LLM Chain-of-Thought insight for a given symbol."""
+    return _MOCK_AI_INSIGHTS.get(
+        symbol,
+        f"**Mock AI Insight — {symbol}**\n\nNo specific mock insight available for this symbol. "
+        "In production mode, the LLM will generate a real analysis based on current price data and news.",
+    )
+
+
+def get_macro_events() -> list[dict]:
+    """
+    Return geo-located macro events for the World Macro View map.
+
+    Contract matches world-monitor NewsItem/Hotspot structure:
+        title, lat, lon, severity ("high"|"medium"|"low"), category, country, summary
+    """
+    return [
+        {
+            "title": "OPEC+ Emergency Meeting — Output Decision Pending",
+            "lat": 24.7, "lon": 46.7,
+            "severity": "high",
+            "category": "energy",
+            "country": "Saudi Arabia",
+            "summary": "Alliance considering additional 500k bpd cut amid demand slowdown concerns.",
+        },
+        {
+            "title": "Russia Reduces Gas Exports via Nord Stream Corridor",
+            "lat": 55.7, "lon": 37.6,
+            "severity": "high",
+            "category": "energy",
+            "country": "Russia",
+            "summary": "Flow volumes down 35% week-on-week; European storage drawdown accelerating.",
+        },
+        {
+            "title": "Ukraine Grain Corridor Extension Agreed for 60 Days",
+            "lat": 50.4, "lon": 30.5,
+            "severity": "medium",
+            "category": "agriculture",
+            "country": "Ukraine",
+            "summary": "UN-brokered deal allows continued Black Sea wheat and corn exports.",
+        },
+        {
+            "title": "Chile Copper Miners Strike — Escondida Output Halted",
+            "lat": -23.7, "lon": -68.0,
+            "severity": "high",
+   (26%) provides "
+        "a floor. Geopolitical risk premium can re-enter quickly."
+    ),
+    "HG=F": (
+        "**Chain-of-Thought Analysis — Copper (HG=F)**\n\n"
+        "Step 1 — China is the marginal buyer (55% of global demand). Stimulus measures announced in March "
+        "targeting infrastructure spending are a positive catalyst.\n\n"
+        "Step 2 — Supply: Chilean production disruptions at Escondida (-8% YoY) are tightening concentrate "
+        "supply. TC/RCs at multi-decade lows confirm smelter squeeze.\n\n"
+        "Step 3 — Energy transition: Copper is essential for EVs (83kg/vehicle), grid infrastructure, "
+        "and renewables. Structural demand deficit expected by 2027.\n\n"
+        "**Conclusion:** **Bullish medium-to-long term**. Near-term may consolidate at $4.35 "
+        "before a move toward $4.70 if Chinese demand data confirms recovery."
+    ),
+}
+
+
+def get_price_data(symbol: str) -> dict:
+    """Return realistic mock OHLCV data for 30 days."""
+    random.seed(hash(symbol) % 10000)
+    base = _BASE_PRICES.get(symbol, 100.0)
+
+    today = datetime.today()
+    dates = [(today - timedelta(days=29 - i)).strftime("%Y-%m-%d") for i in range(30)]
+
+    opens, highs, lows, closes, volumes = [], [], [], [], []
+    price = base
+    for _ in dates:
+        change_pct = random.uniform(-0.012, 0.012)
+        open_ = round(price, 3)
+        close = round(price * (1 + change_pct), 3)
+        high = round(max(open_, close) * (1 + random.uniform(0, 0.005)), 3)
+        low = round(min(open_, close) * (1 - random.uniform(0, 0.005)), 3)
+        vol = int(random.uniform(80_000, 250_000))
+        opens.append(open_)
+        highs.append(high)
+        lows.append(low)
+        closes.append(close)
+        volumes.append(vol)
+        price = close
+
+    return {
+        "symbol": symbol,
+        "currency": _CURRENCY.get(symbol, "USD"),
+        "dates": dates,
+        "open": opens,
+        "high": highs,
+        "low": lows,
+        "close": closes,
+        "volume": volumes,
+    }
+
+
+def get_news(symbol: str) -> list[dict]:
+    """Return 5 mock news items for a given symbol."""
+    # Fall back to generic gold news if symbol not explicitly mocked
+    return _MOCK_NEWS.get(symbol, _MOCK_NEWS["GC=F"])
+
+
+def get_ai_insight(symbol: str) -> str:
+    """Return a mock LLM Chain-of-Thought insight for a given symbol."""
+    return _MOCK_AI_INSIGHTS.get(
+        symbol,
+        f"**Mock AI Insight — {symbol}**\n\nNo specific mock insight available for this symbol. "
+        "In production mode, the LLM will generate a real analysis based on current price data and news.",
+    )
+
+
+def get_macro_events() -> list[dict]:
+    """
+    Return geo-located macro events for the World Macro View map.
+
+    Contract matches world-monitor NewsItem/Hotspot structure:
+        title, lat, lon, severity ("high"|"medium"|"low"), category, country, summary
+    """
+    return [
+        {
+            "title": "OPEC+ Emergency Meeting — Output Decision Pending",
+            "lat": 24.7, "lon": 46.7,
+            "severity": "high",
+            "category": "energy",
+            "country": "Saudi Arabia",
+            "summary": "Alliance considering additional 500k bpd cut amid demand slowdown concerns.",
+        },
+        {
+            "title": "Russia Reduces Gas Exports via Nord Stream Corridor",
+            "lat": 55.7, "lon": 37.6,
+            "severity": "high",
+            "category": "energy",
+            "country": "Russia",
+            "summary": "Flow volumes down 35% week-on-week; European storage drawdown accelerating.",
+        },
+        {
+            "title": "Ukraine Grain Corridor Extension Agreed for 60 Days",
+            "lat": 50.4, "lon": 30.5,
+            "severity": "medium",
+            "category": "agriculture",
+            "country": "Ukraine",
+            "summary": "UN-brokered deal allows continued Black Sea wheat and corn exports.",
+        },
+        {
+            "title": "Chile Copper Miners Strike — Escondida Output Halted",
+            "lat": -23.7, "lon": -68.0,
+            "severity": "high",
+            "category": "metals",
+            "country": "Chile",
+            "summary": "Workers at world's largest copper mine vote to extend strike into third week.",
+        },
+        {
+            "title": "Fed Chair Speech: Rate Path Remains Data-Dependent",
+            "lat": 38.9, "lon": -77.0,
+            "severity": "medium",
+            "category": "market",
+            "country": "USA",
+            "summary": "Powell reiterates restrictive stance; markets pricing in 60% chance of pause.",
+        },
+        {
+            "title": "China Stimulus Package — Infrastructure Spending Approved",
+            "lat": 39.9, "lon": 116.4,
+            "severity": "medium",
+            "category": "market",
+            "country": "China",
+            "summary": "CNY 1.5T infrastructure bond issuance supports copper and steel demand outlook.",
+        },
+        {
+            "title": "Iran Oil Sanctions Tightening — EU Announcement Expected",
+            "lat": 35.7, "lon": 51.4,
+            "severity": "high",
+            "category": "energy",
+            "country": "Iran",
+            "summary": "Additional sanctions could remove 800k bpd from global supply.",
+        },
+        {
+            "title": "Australian Gold Output Hits 5-Year High",
+            "lat": -25.3, "lon": 131.0,
+            "severity": "low",
+            "category": "metals",
+            "country": "Australia",
+            "summary": "Q1 production up 12% YoY; lower production costs support miner margins.",
+        },
+        {
+            "title": "ECB Rate Decision: 25bp Hike Delivered",
+            "lat": 50.1, "lon": 8.7,
+            "severity": "medium",
+            "category": "market",
+            "country": "Germany",
+            "summary": "Eurozone inflation remains above target; further hikes dependent on Q2 CPI print.",
+        },
+        {
+            "title": "West Africa Drought — Wheat Crop Estimate Revised Down",
+            "lat": 12.4, "lon": -1.5,
+            "severity": "medium",
+            "category": "agriculture",
+            "country": "Burkina Faso",
+            "summary": "USDA cuts regional wheat output by 8%; local food security concerns rise.",
+        },
+    ]
+         "category": "metals",
+            "country": "Chile",
+            "summary": "Workers at world's largest copper mine vote to extend strike into third week.",
+        },
+        {
+            "title": "Fed Chair Speech: Rate Path Remains Data-Dependent",
+            "lat": 38.9, "lon": -77.0,
+            "severity": "medium",
+            "category": "market",
+            "country": "USA",
+            "summary": "Powell reiterates restrictive stance; markets pricing in 60% chance of pause.",
+        },
+        {
+            "title": "China Stimulus Package — Infrastructure Spending Approved",
+            "lat": 39.9, "lon": 116.4,
+            "severity": "medium",
+            "category": "market",
+            "country": "China",
+            "summary": "CNY 1.5T infrastructure bond issuance supports copper and steel demand outlook.",
+        },
+        {
+            "title": "Iran Oil Sanctions Tightening — EU Announcement Expected",
+            "lat": 35.7, "lon": 51.4,
+            "severity": "high",
+            "category": "energy",
+            "country": "Iran",
+            "summary": "Additional sanctions could remove 800k bpd from global supply.",
+        },
+        {
+            "title": "Australian Gold Output Hits 5-Year High",
+            "lat": -25.3, "lon": 131.0,
+            "severity": "low",
+            "category": "metals",
+            "country": "Australia",
+            "summary": "Q1 production up 12% YoY; lower production costs support miner margins.",
+        },
+        {
+            "title": "ECB Rate Decision: 25bp Hike Delivered",
+            "lat": 50.1, "lon": 8.7,
+            "severity": "medium",
+            "category": "market",
+            "country": "Germany",
+            "summary": "Eurozone inflation remains above target; further hikes dependent on Q2 CPI print.",
+        },
+        {
+            "title": "West Africa Drought — Wheat Crop Estimate Revised Down",
+            "lat": 12.4, "lon": -1.5,
+            "severity": "medium",
+            "category": "agriculture",
+            "country": "Burkina Faso",
+            "summary": "USDA cuts regional wheat output by 8%; local food security concerns rise.",
+        },
+    ]
+-e \n\n--- FILE: ./data/news.py ---\n
+-e \n\n--- FILE: ./data/news.py ---\n
+"""
+data/news.py — News fetching via NewsAPI or GDELT fallback.
+# TODO: Dev3 — implement live news fetching
+"""
+import logging
+from typing import Optional
+
+import config
+
+logger = logging.getLogger(__name__)
+
+# Map yfinance ticker → plain English search term for news APIs
+_SYMBOL_KEYWORDS = {
+    "GC=F": "gold commodity",
+    "SI=F": "silver commodity",
+    "CL=F": "crude oil WTI",
+    "NG=F": "natural gas commodity",
+    "ZW=F": "wheat commodity",
+    "HG=F": "copper commodity",
+}
+
+
+def get_news(symbol: str, limit: int = 10) -> list[dict]:
+    """
+    Fetch news articles for a commodity symbol.
+
+    Uses NewsAPI if NEWS_API_KEY is set, otherwise falls back to GDELT.
+    Each dict has keys: title, sentiment, source, timestamp, summary.
+
+    # TODO: Dev3 — implement sentiment scoring (positive/negative/neutral)
+    # TODO: Dev3 — add caching to avoid hitting rate limits
+    """
+    keyword = _SYMBOL_KEYWORDS.get(symbol, symbol)
+
+    if config.NEWS_API_KEY:
+        return _fetch_newsapi(keyword, limit)
+    elif config.GDELT_ENABLED:
+        return _fetch_gdelt(keyword, limit)
+    else:
+        logger.warning("No news source configured for %s — returning empty list", symbol)
+        return []
+
+
+def _fetch_newsapi(keyword: str, limit: int) -> list[dict]:
+    """
+    Fetch from NewsAPI.org.
+    # TODO: Dev3 — implement this function
+    """
+    import requests
+
+    url = "https://newsapi.org/v2/everything"
+    params = {
+        "q": keyword,
+        "sortBy": "publishedAt",
+        "pageSize": limit,
+        "apiKey": config.NEWS_API_KEY,
+    }
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        articles = resp.json().get("articles", [])
+        return [
+            {
+                "title": a.get("title", ""),
+                "sentiment": "neutral",  # TODO: Dev3 — add sentiment analysis
+                "source": a.get("source", {}).get("name", "Unknown"),
+                "timestamp": a.get("publishedAt", "")[:16].replace("T", " "),
+                "summary": a.get("description", ""),
+            }
+            for a in articles
+        ]
+    except Exception as exc:
+        logger.error("NewsAPI request failed: %s", exc)
+        return []
+
+
+def _fetch_gdelt(keyword: str, limit: int) -> list[dict]:
+    """
+    Fetch from GDELT Project API (free, no key required).
+    # TODO: Dev3 — implement GDELT parsing
+    """
+    logger.info("GDELT fetch not yet implemented, returning empty list")
+    return []
+"""
+data/news.py — News fetching via NewsAPI or GDELT fallback.
+# TODO: Dev3 — implement live news fetching
+"""
+import logging
+from typing import Optional
+
+import config
+
+logger = logging.getLogger(__name__)
+
+# Map yfinance ticker → plain English search term for news APIs
+_SYMBOL_KEYWORDS = {
+    "GC=F": "gold commodity",
+    "SI=F": "silver commodity",
+    "CL=F": "crude oil WTI",
+    "NG=F": "natural gas commodity",
+    "ZW=F": "wheat commodity",
+    "HG=F": "copper commodity",
+}
+
+
+def get_news(symbol: str, limit: int = 10) -> list[dict]:
+    """
+    Fetch news articles for a commodity symbol.
+
+    Uses NewsAPI if NEWS_API_KEY is set, otherwise falls back to GDELT.
+    Each dict has keys: title, sentiment, source, timestamp, summary.
+
+    # TODO: Dev3 — implement sentiment scoring (positive/negative/neutral)
+    # TODO: Dev3 — add caching to avoid hitting rate limits
+    """
+    keyword = _SYMBOL_KEYWORDS.get(symbol, symbol)
+
+    if config.NEWS_API_KEY:
+        return _fetch_newsapi(keyword, limit)
+    elif config.GDELT_ENABLED:
+        return _fetch_gdelt(keyword, limit)
+    else:
+        logger.warning("No news source configured for %s — returning empty list", symbol)
+        return []
+
+
+def _fetch_newsapi(keyword: str, limit: int) -> list[dict]:
+    """
+    Fetch from NewsAPI.org.
+    # TODO: Dev3 — implement this function
+    """
+    import requests
+
+    url = "https://newsapi.org/v2/everything"
+    params = {
+        "q": keyword,
+        "sortBy": "publishedAt",
+        "pageSize": limit,
+        "apiKey": config.NEWS_API_KEY,
+    }
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        resp.raise_for_status()
+        articles = resp.json().get("articles", [])
+        return [
+            {
+                "title": a.get("title", ""),
+                "sentiment": "neutral",  # TODO: Dev3 — add sentiment analysis
+                "source": a.get("source", {}).get("name", "Unknown"),
+                "timestamp": a.get("publishedAt", "")[:16].replace("T", " "),
+                "summary": a.get("description", ""),
+            }
+            for a in articles
+        ]
+    except Exception as exc:
+        logger.error("NewsAPI request failed: %s", exc)
+        return []
+
+
+def _fetch_gdelt(keyword: str, limit: int) -> list[dict]:
+    """
+    Fetch from GDELT Project API (free, no key required).
+    # TODO: Dev3 — implement GDELT parsing
+    """
+    logger.info("GDELT fetch not yet implemented, returning empty list")
+    return []

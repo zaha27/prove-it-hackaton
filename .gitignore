@@ -39,6 +39,7 @@ Thumbs.db
 # Project specific
 CLAUDE.md
 config/.env
+.env
 config/*.env
 config/secrets.yaml
 !config/.env.example
