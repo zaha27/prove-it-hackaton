@@ -69,15 +69,13 @@ async def get_supported_commodities():
     summary="Get macro events for world map",
     description="Returns geo-located market events for all tracked commodities",
 )
-async def get_macro_events(service: PriceService = Depends(get_price_service)):
+async def get_macro_events():
     """
     Fetch latest price changes for all commodities and return them as
     geo-located events compatible with WorldMapWidget.load_events().
 
     Event format: {title, lat, lon, severity, category, country, country_iso3, summary}
     """
-    _ = service
-
     events = [
         {"title": "Iran warns of tighter inspections in the Strait of Hormuz", "lat": 26.5, "lon": 56.2, "severity": "high", "category": "energy", "country_iso3": "IRN", "country": "Iran", "summary": "Higher transit risk is lifting freight rates and near-dated crude volatility."},
         {"title": "Iran exports decline after stricter sanctions enforcement", "lat": 35.7, "lon": 51.4, "severity": "high", "category": "energy", "country_iso3": "IRN", "country": "Iran", "summary": "Lower flows are tightening medium-sour crude availability in Asia."},
