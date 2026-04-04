@@ -21,10 +21,18 @@ def get_price_data(symbol: str, period_days: int = 30) -> Optional[dict]:
     try:
         import yfinance as yf
 
+        period_days = max(2, int(period_days))
         end = datetime.today()
         start = end - timedelta(days=period_days)
+        interval = "1d" if period_days <= 90 else "1wk"
         ticker = yf.Ticker(symbol)
-        df = ticker.history(start=start.strftime("%Y-%m-%d"), end=end.strftime("%Y-%m-%d"))
+        df = ticker.history(
+            start=start.strftime("%Y-%m-%d"),
+            end=end.strftime("%Y-%m-%d"),
+            interval=interval,
+            auto_adjust=False,
+            prepost=False,
+        )
 
         if df.empty:
             logger.warning("yfinance returned empty DataFrame for %s", symbol)

@@ -3,7 +3,7 @@ bridge.py — AppBridge: connects UI events to data layer via QThread.
 """
 import logging
 
-from PyQt6.QtCore import QThread, pyqtSignal, QObject
+from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
 
@@ -17,23 +17,36 @@ class _FetchWorker(QThread):
     data_ready = pyqtSignal(dict, list, str)   # (price_data, news, insight)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, symbol: str, use_mock: bool = False, parent=None):
+    def __init__(
+        self,
+        symbol: str,
+        period_days: int = 30,
+        include_context: bool = True,
+        use_mock: bool = False,
+        parent=None,
+    ):
         super().__init__(parent)
         self.symbol = symbol
+        self.period_days = period_days
+        self.include_context = include_context
         self.use_mock = use_mock
 
     def run(self) -> None:
         try:
             if self.use_mock:
                 from data import mock_data
-                price_data = mock_data.get_price_data(self.symbol)
-                news = mock_data.get_news(self.symbol)
-                insight = mock_data.get_ai_insight(self.symbol)
+                price_data = mock_data.get_price_data(self.symbol, period_days=self.period_days)
+                news = mock_data.get_news(self.symbol) if self.include_context else []
+                insight = mock_data.get_ai_insight(self.symbol) if self.include_context else ""
             else:
                 from data import market, news as news_module, ai_engine
-                price_data = market.get_price_data(self.symbol) or {}
-                news = news_module.get_news(self.symbol)
-                insight = ai_engine.get_ai_insight(self.symbol, price_data, news)
+                price_data = market.get_price_data(self.symbol, period_days=self.period_days) or {}
+                if self.include_context:
+                    news = news_module.get_news(self.symbol)
+                    insight = ai_engine.get_ai_insight(self.symbol, price_data, news)
+                else:
+                    news = []
+                    insight = ""
 
             self.data_ready.emit(price_data, news, insight)
 
@@ -55,6 +68,14 @@ class AppBridge(QObject):
         self._panel_chart = panel_chart
         self._use_mock = use_mock
         self._worker: _FetchWorker | None = None
+        self._current_timeframe: str = "1M"
+        self._timeframe_days: dict[str, int] = {
+            "1W": 7,
+            "1M": 30,
+            "3M": 90,
+            "6M": 180,
+            "1Y": 365,
+        }
 
         # Connect sidebar signals
         self._window.sidebar.commodity_selected.connect(self.on_select)
@@ -64,6 +85,10 @@ class AppBridge(QObject):
         self._panel_chart.timeframe_changed.connect(self._on_timeframe_changed)
 
         self._current_symbol: str | None = None
+        self._live_timer = QTimer(self)
+        self._live_timer.setInterval(30_000)
+        self._live_timer.timeout.connect(self._on_live_tick)
+        self._live_timer.start()
 
     def on_select(self, symbol: str) -> None:
         """Called when the user selects a commodity from the sidebar."""
@@ -73,18 +98,23 @@ class AppBridge(QObject):
     def _on_refresh(self) -> None:
         """Re-fetch data for the currently selected symbol."""
         if self._current_symbol:
-            self._fetch(self._current_symbol)
+            self._fetch(self._current_symbol, include_context=True)
 
     def _on_timeframe_changed(self, timeframe: str) -> None:
         """
         Re-fetch when timeframe changes.
-        # TODO: Dev2 — pass timeframe to market.get_price_data(symbol, period_days=...)
         """
-        logger.info("Timeframe changed to %s (re-fetch not yet wired)", timeframe)
+        self._current_timeframe = timeframe if timeframe in self._timeframe_days else "1M"
+        logger.info("Timeframe changed to %s", self._current_timeframe)
         if self._current_symbol:
             self._fetch(self._current_symbol)
 
-    def _fetch(self, symbol: str) -> None:
+    def _on_live_tick(self) -> None:
+        """Periodic live refresh for current symbol."""
+        if self._current_symbol:
+            self._fetch(self._current_symbol, include_context=False)
+
+    def _fetch(self, symbol: str, include_context: bool = True) -> None:
         """Start background fetch. Cancels any in-progress worker."""
         if self._worker and self._worker.isRunning():
             self._worker.quit()
@@ -93,7 +123,13 @@ class AppBridge(QObject):
         self._window.set_loading(True)
         self._window.update_status(symbol, None)
 
-        self._worker = _FetchWorker(symbol, use_mock=self._use_mock)
+        period_days = self._timeframe_days.get(self._current_timeframe, 30)
+        self._worker = _FetchWorker(
+            symbol,
+            period_days=period_days,
+            include_context=include_context,
+            use_mock=self._use_mock,
+        )
         self._worker.data_ready.connect(self._on_data_ready)
         self._worker.error_occurred.connect(self._on_error)
         self._worker.start()
@@ -110,8 +146,10 @@ class AppBridge(QObject):
             last_price = None
 
         # Update panels
-        self._window.update_news(news)
-        self._window.update_insight(insight)
+        if news:
+            self._window.update_news(news)
+        if insight:
+            self._window.update_insight(insight)
         self._window.set_loading(False)
         self._window.update_status(symbol, last_price)
 
