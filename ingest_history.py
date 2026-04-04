@@ -8,6 +8,7 @@ import hashlib
 import math
 from dataclasses import dataclass
 from typing import Any
+import logging
 
 import numpy as np
 import pandas as pd
@@ -29,6 +30,11 @@ from src.features.xgboost_features import XGBoostFeatureEngineer
 TRAINING_COLLECTION = "historical_training_data"
 VECTOR_SIZE = 384
 TARGET_HORIZONS = (1, 3, 7, 14, 30)
+UPSERT_BATCH_SIZE = 256
+SCROLL_BATCH_SIZE = 1000
+TRAIN_TEST_SPLIT_RATIO = 0.8
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -55,9 +61,6 @@ def _feature_vector(feature_values: list[float], size: int = VECTOR_SIZE) -> lis
     if vec.size == 0:
         vec = np.zeros(size, dtype=np.float32)
     else:
-        std = float(np.std(vec))
-        if std > 0:
-            vec = (vec - float(np.mean(vec))) / std
         if vec.size < size:
             vec = np.pad(vec, (0, size - vec.size), mode="constant")
         else:
@@ -71,8 +74,14 @@ def _row_id(symbol: str, date: str) -> int:
 
 
 def _prepare_symbol_dataframe(symbol: str, years: int) -> pd.DataFrame:
-    hist = yf.Ticker(symbol).history(period=f"{years}y", interval="1d", auto_adjust=False)
+    try:
+        hist = yf.Ticker(symbol).history(period=f"{years}y", interval="1d", auto_adjust=False)
+    except Exception as exc:
+        logger.warning("Failed to download history for %s: %s", symbol, exc)
+        return pd.DataFrame()
+
     if hist.empty:
+        logger.warning("No historical rows returned for %s", symbol)
         return pd.DataFrame()
 
     hist = hist.reset_index()
@@ -152,8 +161,11 @@ def ingest_history(
                 )
             )
 
-        for i in range(0, len(points), 256):
-            qdrant.upsert(collection_name=collection_name, points=points[i : i + 256])
+        for i in range(0, len(points), UPSERT_BATCH_SIZE):
+            qdrant.upsert(
+                collection_name=collection_name,
+                points=points[i : i + UPSERT_BATCH_SIZE],
+            )
 
         results.append(IngestResult(symbol=symbol, rows_ingested=len(points)))
 
@@ -182,7 +194,7 @@ def get_training_data(
             ),
             with_payload=True,
             with_vectors=False,
-            limit=1000,
+            limit=SCROLL_BATCH_SIZE,
             offset=offset,
         )
         if not points:
@@ -212,7 +224,7 @@ def get_training_data(
     if len(X) < 5:
         raise ValueError(f"Not enough rows for train/test split for {symbol}: {len(X)}")
 
-    split_idx = max(1, min(len(X) - 1, math.floor(len(X) * 0.8)))
+    split_idx = max(1, min(len(X) - 1, math.floor(len(X) * TRAIN_TEST_SPLIT_RATIO)))
     X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
     return X_train, X_test, y_train, y_test
