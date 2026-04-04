@@ -13,7 +13,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-_SANS = '"-apple-system", "Segoe UI", "Helvetica Neue", Arial, sans-serif'
+_SANS = '"Segoe UI", "Helvetica Neue", Arial, sans-serif'
 _MONO = '"SF Mono", "Menlo", "Courier New", monospace'
 
 _QSS = f"""

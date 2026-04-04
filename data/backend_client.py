@@ -269,7 +269,7 @@ def get_ai_insight(symbol: str, price_data: dict | None, news: list[dict]) -> st
 
 # ── Consensus (via /api/v1/mcp/consensus) ─────────────────────────────────────
 
-def get_consensus(symbol: str, max_rounds: int = 5) -> dict | None:
+def get_consensus(symbol: str, max_rounds: int = 3) -> dict | None:
     """
     Request a DeepSeek-Gemma4 consensus from the backend.
 

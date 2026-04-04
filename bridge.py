@@ -64,6 +64,18 @@ class _FetchWorker(QThread):
                     # Use new consensus endpoint if enabled
                     if self.use_consensus:
                         consensus_result = backend_client.get_consensus(self.symbol)
+                        # Fallback to fast insight if consensus is unavailable/errored
+                        if not consensus_result or (
+                            not consensus_result.get("consensus_reached", False)
+                            and consensus_result.get("rounds_conducted", 0) == 0
+                        ):
+                            insight_text = backend_client.get_ai_insight(
+                                self.symbol, price_data, news
+                            )
+                            consensus_result = {
+                                "final_recommendation": insight_text,
+                                "fallback": True,
+                            }
                     else:
                         consensus_result = None
                 else:

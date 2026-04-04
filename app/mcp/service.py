@@ -252,7 +252,6 @@ class MCPService:
         Returns:
             ConsensusResponse with debate history and final recommendation
         """
-        import asyncio
         from src.ml.consensus_engine import ConsensusEngine
         from src.ml.xgboost_trainer import XGBoostTrainer
         from src.features.xgboost_features import XGBoostFeatureEngineer
@@ -261,84 +260,107 @@ class MCPService:
 
         commodity = request.commodity.upper()
 
-        # Fetch data
-        yf_client = YFinanceClient()
-        price_service = PriceService()
+        try:
+            # Fetch data
+            yf_client = YFinanceClient()
+            price_service = PriceService()
 
-        # Get Yahoo Finance news with sentiment
-        news = yf_client.fetch_news(commodity, limit=10)
-        news_sentiment = yf_client.analyze_news_sentiment(news)
+            # Get Yahoo Finance news with sentiment
+            news = yf_client.fetch_news(commodity, limit=10)
+            news_sentiment = yf_client.analyze_news_sentiment(news)
 
-        # Get price data
-        price_data = price_service.get_latest_price(commodity)
+            # Get price data
+            price_data = price_service.get_latest_price(commodity)
 
-        # Get XGBoost prediction
-        xgb_trainer = XGBoostTrainer()
-        feature_engineer = XGBoostFeatureEngineer()
+            # Get XGBoost prediction
+            xgb_trainer = XGBoostTrainer()
+            feature_engineer = XGBoostFeatureEngineer()
 
-        # Fetch OHLCV data for features
-        ohlcv = yf_client.fetch_ohlcv(commodity, period="60d")
-        df = ohlcv.to_dataframe()
+            # Fetch OHLCV data for features
+            ohlcv = yf_client.fetch_ohlcv(commodity, period="60d")
+            df = ohlcv.to_dataframe()
+            if df.empty:
+                raise ValueError(f"No OHLCV data available for {commodity}")
 
-        # Engineer features with sentiment
-        df_features = feature_engineer.engineer_features(df, news_sentiment)
+            # Engineer features with sentiment
+            df_features = feature_engineer.engineer_features(df, news_sentiment)
+            if df_features.empty:
+                raise ValueError(f"No engineered features available for {commodity}")
 
-        # Get current features for prediction
-        current_features = df_features.iloc[-1].to_dict()
+            # Get current features for prediction
+            current_features = df_features.iloc[-1].to_dict()
 
-        # Train and predict
-        xgb_result = xgb_trainer.predict_with_explanation(commodity, current_features)
+            # Train and predict
+            xgb_result = xgb_trainer.predict_with_explanation(commodity, current_features)
 
-        # Run consensus debate with Gemini MCP for web search
-        consensus_engine = ConsensusEngine(
-            max_rounds=request.max_rounds,
-            agreement_threshold=request.agreement_threshold,
-            gemini_mcp=self if self._use_real_gemini else None,
-        )
-
-        result = await consensus_engine.reach_consensus(
-            commodity=commodity,
-            xgboost_result=xgb_result,
-            price_data=price_data,
-            yahoo_news=[
-                {
-                    "title": n.title,
-                    "sentiment": n.sentiment,
-                    "sentiment_score": n.sentiment_score,
-                    "source": n.source,
-                }
-                for n in news
-            ],
-        )
-
-        # Convert to Pydantic model
-        debate_rounds = [
-            DebateRound(
-                round_number=r.round_number,
-                gemma4_argument=r.gemma4_argument,
-                gemma4_sources=r.gemma4_sources,
-                gemma4_position=r.gemma4_position,
-                deepseek_critique=r.deepseek_critique,
-                deepseek_counter=r.deepseek_counter,
-                deepseek_position=r.deepseek_position,
-                agreement_score=r.agreement_score,
+            # Run consensus debate with Gemini MCP for web search
+            consensus_engine = ConsensusEngine(
+                max_rounds=request.max_rounds,
+                agreement_threshold=request.agreement_threshold,
+                gemini_mcp=self if self._use_real_gemini else None,
             )
-            for r in result.debate_history
-        ]
 
-        return ConsensusResponse(
-            commodity=result.commodity,
-            consensus_reached=result.consensus_reached,
-            rounds_conducted=result.rounds_conducted,
-            final_recommendation=result.final_recommendation,
-            confidence=result.confidence,
-            direction=result.direction,
-            risk_level=result.risk_level,
-            debate_history=debate_rounds,
-            xgboost_input=result.xgboost_input,
-            yahoo_news_summary=result.yahoo_news_summary,
-            final_reasoning=result.final_reasoning,
-            gemma4_final_position=result.gemma4_final_position,
-            deepseek_final_position=result.deepseek_final_position,
-            fetched_at=datetime.utcnow(),
-        )
+            result = await consensus_engine.reach_consensus(
+                commodity=commodity,
+                xgboost_result=xgb_result,
+                price_data=price_data,
+                yahoo_news=[
+                    {
+                        "title": n.title,
+                        "sentiment": n.sentiment,
+                        "sentiment_score": n.sentiment_score,
+                        "source": n.source,
+                    }
+                    for n in news
+                ],
+            )
+
+            # Convert to Pydantic model
+            debate_rounds = [
+                DebateRound(
+                    round_number=r.round_number,
+                    gemma4_argument=r.gemma4_argument,
+                    gemma4_sources=r.gemma4_sources,
+                    gemma4_position=r.gemma4_position,
+                    deepseek_critique=r.deepseek_critique,
+                    deepseek_counter=r.deepseek_counter,
+                    deepseek_position=r.deepseek_position,
+                    agreement_score=r.agreement_score,
+                )
+                for r in result.debate_history
+            ]
+
+            return ConsensusResponse(
+                commodity=result.commodity,
+                consensus_reached=result.consensus_reached,
+                rounds_conducted=result.rounds_conducted,
+                final_recommendation=result.final_recommendation,
+                confidence=result.confidence,
+                direction=result.direction,
+                risk_level=result.risk_level,
+                debate_history=debate_rounds,
+                xgboost_input=result.xgboost_input,
+                yahoo_news_summary=result.yahoo_news_summary,
+                final_reasoning=result.final_reasoning,
+                gemma4_final_position=result.gemma4_final_position,
+                deepseek_final_position=result.deepseek_final_position,
+                fetched_at=datetime.utcnow(),
+            )
+        except Exception as exc:
+            # Return a safe fallback payload so API stays responsive instead of 500.
+            return ConsensusResponse(
+                commodity=commodity,
+                consensus_reached=False,
+                rounds_conducted=0,
+                final_recommendation="HOLD",
+                confidence=0.0,
+                direction="hold",
+                risk_level="high",
+                debate_history=[],
+                xgboost_input={},
+                yahoo_news_summary="",
+                final_reasoning=f"Consensus unavailable due to runtime error: {exc}",
+                gemma4_final_position={},
+                deepseek_final_position={},
+                fetched_at=datetime.utcnow(),
+            )
