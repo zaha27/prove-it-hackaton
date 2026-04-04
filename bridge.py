@@ -41,6 +41,9 @@ class _FetchWorker(QThread):
                 logger.warning("Live market fetch failed for %s; falling back to mock chart data", self.symbol)
                 from data import mock_data
                 price_data = mock_data.get_price_data(self.symbol, period_days=self.period_days)
+                if price_data is None:
+                    self.error_occurred.emit(f"Price data unavailable for {self.symbol}")
+                    return
 
             if self.use_mock:
                 from data import mock_data
