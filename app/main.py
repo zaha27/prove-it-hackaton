@@ -13,6 +13,7 @@ from app.price.router import router as price_router
 from app.sentiment.router import router as sentiment_router
 from app.change.router import router as change_router
 from app.mcp.router import router as mcp_router
+from app.macro.router import router as macro_router
 
 app = FastAPI(
     title="Commodity Intelligence API",
@@ -36,6 +37,7 @@ app.include_router(price_router, prefix="/api/v1/price", tags=["price"])
 app.include_router(sentiment_router, prefix="/api/v1/sentiment", tags=["sentiment"])
 app.include_router(change_router, prefix="/api/v1/change", tags=["change"])
 app.include_router(mcp_router, prefix="/api/v1/mcp", tags=["mcp"])
+app.include_router(macro_router, prefix="/macro", tags=["macro"])
 
 
 @app.get("/", tags=["root"])
@@ -50,6 +52,7 @@ async def root():
             "sentiment": "/api/v1/sentiment",
             "change": "/api/v1/change",
             "mcp": "/api/v1/mcp",
+            "macro": "/macro",
         },
     }
 
