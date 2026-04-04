@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from xgboost.core import XGBoostError
 
 try:
     import cudf  # optional acceleration for loading/preprocessing
@@ -81,7 +82,10 @@ def _time_split(X: pd.DataFrame, y: pd.Series, dts: pd.Series, train_frac: float
     n = len(X)
     cut = int(n * train_frac)
     if cut <= 0 or cut >= n:
-        raise ValueError("Invalid train fraction produced empty train/test split.")
+        raise ValueError(
+            f"Invalid train_frac={train_frac}: must produce non-empty chronological train/test "
+            f"splits (cut={cut}, samples={n})."
+        )
     X_train, X_test = X.iloc[:cut], X.iloc[cut:]
     y_train, y_test = y.iloc[:cut], y.iloc[cut:]
     dt_train, dt_test = dts.iloc[:cut], dts.iloc[cut:]
@@ -96,6 +100,18 @@ def _train_gpu_model(
     num_boost_round: int,
     early_stopping_rounds: int,
 ) -> xgb.Booster:
+    # Clear early failure if CUDA is unavailable, instead of a cryptic training error.
+    try:
+        build_info = xgb.build_info()
+    except (XGBoostError, AttributeError) as exc:
+        raise RuntimeError(f"Unable to query XGBoost build info: {exc}") from exc
+    has_cuda = bool(
+        any("cuda" in str(v).lower() for v in build_info.values())
+        or "cuda" in str(build_info).lower()
+    )
+    if not has_cuda:
+        raise RuntimeError("XGBoost CUDA support not detected; install a CUDA-enabled XGBoost build to train with device='cuda'.")
+
     dtrain = xgb.DMatrix(X_train, label=y_train)
     dval = xgb.DMatrix(X_val, label=y_val)
     params = {

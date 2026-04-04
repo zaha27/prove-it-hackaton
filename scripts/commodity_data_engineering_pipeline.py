@@ -126,7 +126,8 @@ def _load_source(cfg: SourceConfig, start: pd.Timestamp, end: pd.Timestamp, enti
     if df.empty:
         freq = "D" if cfg.expected_frequency == "daily" else ("MS" if cfg.expected_frequency == "monthly" else "YS")
         df = _mock_time_series(start, end, freq, cfg.prefix, n_cols=3)
-    value_cols = [c for c in df.columns if c != "date" and c != (entity_col or "")]
+    excluded = {"date"} | ({entity_col} if entity_col else set())
+    value_cols = [c for c in df.columns if c not in excluded]
     return _normalize_source(df, prefix=cfg.prefix, value_cols=value_cols, entity_col=entity_col)
 
 
@@ -177,7 +178,12 @@ def _monthly_to_daily(df: pd.DataFrame, daily_index: pd.DatetimeIndex, source_pr
     valid = pos >= 0
     if valid.any():
         last_update.loc[valid] = source_dates[pos[valid]]
-    months_since = ((daily_index.year - last_update.dt.year) * 12 + (daily_index.month - last_update.dt.month)).astype("float")
+    months_since = pd.Series(np.nan, index=daily_index, dtype="float")
+    if valid.any():
+        months_since.loc[valid] = (
+            (daily_index[valid].year - last_update.loc[valid].dt.year) * 12
+            + (daily_index[valid].month - last_update.loc[valid].dt.month)
+        ).astype("float")
     base[f"{source_prefix}_months_since_update"] = months_since
     return base
 
