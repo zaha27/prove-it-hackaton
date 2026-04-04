@@ -4,7 +4,7 @@ from typing import List
 
 from app.macro.models import MacroNewsItem
 from data.macro_insight_text import WORLD_MACRO_INSIGHT_TEXT
-from data.news import fetch_real_world_news
+from src.data.services import news_service
 
 
 class MacroService:
@@ -12,7 +12,10 @@ class MacroService:
 
     async def get_macro_news(self) -> List[MacroNewsItem]:
         """Return global macro news for world view fetched from GDELT."""
-        raw_items = fetch_real_world_news(limit=50)
+        try:
+            raw_items = news_service.fetch_real_world_news(limit=50)
+        except Exception:
+            raw_items = []
         return [
             MacroNewsItem(
                 title=item.get("title", ""),

@@ -38,7 +38,10 @@ class TestMacroRouter:
                 "country_iso3": "CHN",
             },
         ]
-        with patch("app.macro.service.fetch_real_world_news", return_value=mock_news):
+        with patch(
+            "src.data.services.news_service.fetch_real_world_news",
+            return_value=mock_news,
+        ):
             response = client.get("/macro/news")
 
         assert response.status_code == 200
