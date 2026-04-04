@@ -10,6 +10,7 @@ import xgboost as xgb
 from qdrant_client import QdrantClient
 from sklearn.model_selection import train_test_split
 
+from config import SYMBOLS
 from src.data.config import config
 from src.data.vector_schema import PRICE_PATTERNS_COLLECTION
 
@@ -139,6 +140,10 @@ class XGBoostTrainer:
 
         return X, y
 
+    def _get_model_path(self, commodity: str) -> Path:
+        """Get model path for a commodity symbol."""
+        return self.model_dir / f"xgboost_{commodity}.pkl"
+
     def train_model(
         self,
         commodity: str,
@@ -155,7 +160,7 @@ class XGBoostTrainer:
         Returns:
             Trained XGBoost model
         """
-        model_path = self.model_dir / f"{commodity.lower()}_xgb_{target_horizon}d.pkl"
+        model_path = self._get_model_path(commodity)
 
         # Try to load existing model
         if not force_retrain and model_path.exists():
@@ -217,6 +222,31 @@ class XGBoostTrainer:
 
         return model
 
+    def train_all_models(
+        self, target_horizon: int = 7, force_retrain: bool = False
+    ) -> dict[str, xgb.XGBRegressor]:
+        """Train models for all configured commodity symbols."""
+        trained_models: dict[str, xgb.XGBRegressor] = {}
+        for symbol in SYMBOLS.keys():
+            trained_models[symbol] = self.train_model(
+                symbol, target_horizon=target_horizon, force_retrain=force_retrain
+            )
+        return trained_models
+
+    def load_model(self, commodity: str) -> xgb.XGBRegressor:
+        """Load a trained model for a commodity symbol from disk."""
+        if commodity in self.models:
+            return self.models[commodity]
+
+        model_path = self._get_model_path(commodity)
+        if not model_path.exists():
+            raise FileNotFoundError(f"Model file not found for {commodity}: {model_path}")
+
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+        self.models[commodity] = model
+        return model
+
     def predict(self, commodity: str, features: dict[str, float]) -> float:
         """Make prediction for a commodity.
 
@@ -227,10 +257,10 @@ class XGBoostTrainer:
         Returns:
             Predicted return
         """
-        if commodity not in self.models:
-            self.train_model(commodity)
-
-        model = self.models[commodity]
+        try:
+            model = self.load_model(commodity)
+        except FileNotFoundError:
+            model = self.train_model(commodity)
 
         # Convert features to array in correct order
         feature_names = model.get_booster().feature_names
