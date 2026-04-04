@@ -40,6 +40,9 @@ class TestMacroRouter:
         data = response.json()
         assert "insight" in data
         assert isinstance(data["insight"], str)
-        assert "Macro Context (Dobânzi/Bănci Centrale)" in data["insight"]
-        assert "Geopolitică & Supply Chain" in data["insight"]
-        assert "Concluzie / Risc Global" in data["insight"]
+        assert "AI Insight — World Macro View" in data["insight"]
+        assert "Russia-Ukraine war" in data["insight"]
+        assert "Strait of Hormuz" in data["insight"]
+        assert "Red Sea" in data["insight"]
+        assert "Fed policy" in data["insight"]
+        assert "China demand" in data["insight"]

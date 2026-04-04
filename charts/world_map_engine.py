@@ -13,6 +13,7 @@ Event dict contract (matches world-monitor NewsItem + our mock_data format):
         "severity":   "high" | "medium" | "low",   # maps to world-monitor ThreatLevel
         "category":   str,                          # e.g. "conflict", "energy", "market"
         "country":    str,
+        "country_iso3": str,                        # ISO-3 (e.g. IRN, UKR, RUS)
         "summary":    str,
     }
 """
@@ -37,26 +38,6 @@ _SEVERITY_COLOR = {
     "low":    _BLUE,
 }
 
-# Commodity-producing regions highlighted on the choropleth
-# iso_alpha_3 → intensity 0–1  (used for the base layer)
-_COMMODITY_EXPOSURE = {
-    "SAU": 1.0,   # Saudi Arabia — crude oil
-    "RUS": 0.9,   # Russia — oil / gas / wheat
-    "USA": 0.7,   # USA — crude / nat gas / wheat
-    "CHN": 0.6,   # China — copper demand
-    "AUS": 0.6,   # Australia — copper / gold
-    "ZAF": 0.5,   # South Africa — gold
-    "CHL": 0.5,   # Chile — copper
-    "IRN": 0.8,   # Iran — crude / geopolitical
-    "UKR": 0.7,   # Ukraine — wheat
-    "ARE": 0.6,   # UAE — oil
-    "NOR": 0.5,   # Norway — oil / gas
-    "CAN": 0.4,   # Canada — oil sands
-    "BRA": 0.4,   # Brazil — iron ore / soy
-    "PER": 0.4,   # Peru — copper / gold
-    "GHA": 0.3,   # Ghana — gold
-}
-
 
 def build_world_map(events: list[dict] | None = None) -> str:
     """
@@ -74,25 +55,50 @@ def build_world_map(events: list[dict] | None = None) -> str:
 
         fig = go.Figure()
 
-        # ── Layer 1: commodity exposure choropleth ───────────────────────────
-        countries  = list(_COMMODITY_EXPOSURE.keys())
-        intensities = list(_COMMODITY_EXPOSURE.values())
+        # ── Layer 1: dynamic country heat from event severity ────────────────
+        severity_weight = {"high": 3, "medium": 2, "low": 1}
+        country_scores: dict[str, int] = {}
+        country_event_counts: dict[str, int] = {}
+        country_names: dict[str, str] = {}
+
+        for event in (events or []):
+            iso3 = str(event.get("country_iso3", "")).strip().upper()
+            if not iso3:
+                continue
+            sev = str(event.get("severity", "low")).strip().lower()
+            country_scores[iso3] = country_scores.get(iso3, 0) + severity_weight.get(sev, 1)
+            country_event_counts[iso3] = country_event_counts.get(iso3, 0) + 1
+            if iso3 not in country_names:
+                country_names[iso3] = str(event.get("country", iso3))
+
+        countries = list(country_scores.keys())
+        heat_scores = [country_scores[c] for c in countries]
+        event_counts = [country_event_counts.get(c, 0) for c in countries]
+        country_labels = [country_names.get(c, c) for c in countries]
 
         fig.add_trace(go.Choropleth(
             locations=countries,
-            z=intensities,
+            z=heat_scores,
+            customdata=list(zip(country_labels, event_counts)),
             locationmode="ISO-3",
             colorscale=[
                 [0.0, "#0D0D0D"],
-                [0.3, "#0D2340"],
-                [0.7, "#0F3560"],
-                [1.0, "#1E3A5F"],
+                [0.25, "#2A1216"],
+                [0.50, "#5A131A"],
+                [0.75, "#8C1823"],
+                [1.0, "#DC2626"],
             ],
+            zmin=0,
+            zmax=max(heat_scores) if heat_scores else 1,
             showscale=False,
             marker_line_color="#1C1C1C",
             marker_line_width=0.5,
-            hovertemplate="<b>%{location}</b><extra></extra>",
-            name="Commodity Exposure",
+            hovertemplate=(
+                "<b>%{customdata[0]}</b> (%{location})<br>"
+                "Risk heat score: %{z}<br>"
+                "Tracked events: %{customdata[1]}<extra></extra>"
+            ),
+            name="Country Risk Heat",
         ))
 
         # ── Layer 2: geo-located events ──────────────────────────────────────
