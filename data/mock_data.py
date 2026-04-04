@@ -170,13 +170,14 @@ _MOCK_AI_INSIGHTS = {
 }
 
 
-def get_price_data(symbol: str) -> dict:
-    """Return realistic mock OHLCV data for 30 days."""
-    random.seed(hash(symbol) % 10000)
+def get_price_data(symbol: str, period_days: int = 30) -> dict:
+    """Return realistic mock OHLCV data for the requested period."""
+    random.seed(hash((symbol, int(period_days))) % 1_000_000)
     base = _BASE_PRICES.get(symbol, 100.0)
 
     today = datetime.today()
-    dates = [(today - timedelta(days=29 - i)).strftime("%Y-%m-%d") for i in range(30)]
+    days = max(2, int(period_days))
+    dates = [(today - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d") for i in range(days)]
 
     opens, highs, lows, closes, volumes = [], [], [], [], []
     price = base
