@@ -1,6 +1,7 @@
 """Macro API router."""
 
 from typing import List
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -9,6 +10,7 @@ from app.macro.models import MacroInsightResponse, MacroNewsItem
 from app.macro.service import MacroService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get(
@@ -23,8 +25,9 @@ async def get_macro_news(
     """Get world macro news."""
     try:
         return await service.get_macro_news()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    except Exception:
+        logger.exception("Failed to get macro news")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(
@@ -40,6 +43,6 @@ async def get_macro_insight(
     try:
         insight = await service.get_macro_insight()
         return MacroInsightResponse(insight=insight)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
+    except Exception:
+        logger.exception("Failed to get macro insight")
+        raise HTTPException(status_code=500, detail="Internal server error")

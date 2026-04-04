@@ -38,6 +38,7 @@ app.include_router(sentiment_router, prefix="/api/v1/sentiment", tags=["sentimen
 app.include_router(change_router, prefix="/api/v1/change", tags=["change"])
 app.include_router(mcp_router, prefix="/api/v1/mcp", tags=["mcp"])
 app.include_router(macro_router, prefix="/macro", tags=["macro"])
+app.include_router(macro_router, prefix="/api/v1/macro", tags=["macro"])
 
 
 @app.get("/", tags=["root"])
@@ -53,6 +54,7 @@ async def root():
             "change": "/api/v1/change",
             "mcp": "/api/v1/mcp",
             "macro": "/macro",
+            "macro_v1": "/api/v1/macro",
         },
     }
 

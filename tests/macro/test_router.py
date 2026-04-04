@@ -22,7 +22,7 @@ class TestMacroRouter:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-        assert 5 <= len(data) <= 10
+        assert len(data) == 5
         for item in data:
             assert set(item.keys()) == {
                 "title",
@@ -43,4 +43,3 @@ class TestMacroRouter:
         assert "Macro Context (Dobânzi/Bănci Centrale)" in data["insight"]
         assert "Geopolitică & Supply Chain" in data["insight"]
         assert "Concluzie / Risc Global" in data["insight"]
-
