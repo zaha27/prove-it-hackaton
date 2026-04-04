@@ -37,6 +37,9 @@ _SEVERITY_COLOR = {
     "medium": _YELLOW,
     "low":    _BLUE,
 }
+# Weighted risk contribution per event severity.
+_SEVERITY_WEIGHTS = {"high": 3, "medium": 2, "low": 1}
+_DEFAULT_HEAT_MAX = 1
 
 
 def build_world_map(events: list[dict] | None = None) -> str:
@@ -56,17 +59,17 @@ def build_world_map(events: list[dict] | None = None) -> str:
         fig = go.Figure()
 
         # ── Layer 1: dynamic country heat from event severity ────────────────
-        severity_weight = {"high": 3, "medium": 2, "low": 1}
         country_scores: dict[str, int] = {}
         country_event_counts: dict[str, int] = {}
         country_names: dict[str, str] = {}
 
         for event in (events or []):
             iso3 = str(event.get("country_iso3", "")).strip().upper()
+            # Intentionally skip events without ISO-3 so the choropleth only maps valid countries.
             if not iso3:
                 continue
             sev = str(event.get("severity", "low")).strip().lower()
-            country_scores[iso3] = country_scores.get(iso3, 0) + severity_weight.get(sev, 1)
+            country_scores[iso3] = country_scores.get(iso3, 0) + _SEVERITY_WEIGHTS.get(sev, 1)
             country_event_counts[iso3] = country_event_counts.get(iso3, 0) + 1
             if iso3 not in country_names:
                 country_names[iso3] = str(event.get("country", iso3))
@@ -89,7 +92,7 @@ def build_world_map(events: list[dict] | None = None) -> str:
                 [1.0, "#DC2626"],
             ],
             zmin=0,
-            zmax=max(heat_scores) if heat_scores else 1,
+            zmax=max(heat_scores, default=_DEFAULT_HEAT_MAX),
             showscale=False,
             marker_line_color="#1C1C1C",
             marker_line_width=0.5,

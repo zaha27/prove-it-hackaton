@@ -1,5 +1,6 @@
 """Price API router."""
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 
@@ -8,6 +9,7 @@ from app.price.models import PriceDataResponse, LatestPriceResponse
 from app.core.dependencies import get_price_service
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get(
@@ -111,7 +113,11 @@ async def get_macro_events(service: PriceService = Depends(get_price_service)):
                 severity = "low"
 
             direction = "up" if change >= 0 else "down"
-            lat, lon, country, country_iso3 = _GEO.get(commodity, (0.0, 0.0, commodity, "UNK"))
+            if commodity not in _GEO:
+                logger.warning("No geo mapping for commodity %s in macro-events endpoint", commodity)
+                return None
+
+            lat, lon, country, country_iso3 = _GEO[commodity]
             return {
                 "title":    f"{commodity} {direction} {abs(change):.2f}% — ${price:,.2f}",
                 "lat":      lat,

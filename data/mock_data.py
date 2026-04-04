@@ -4,6 +4,7 @@ No API keys required.
 """
 from datetime import datetime, timedelta
 import random
+from data.macro_insight_text import WORLD_MACRO_INSIGHT_TEXT
 
 # Seed per symbol for reproducible "random" data
 _BASE_PRICES = {
@@ -102,14 +103,7 @@ _MOCK_NEWS = {
 }
 
 _MOCK_AI_INSIGHTS = {
-    "Macro": (
-        "**AI Insight — World Macro View**\n\n"
-        "- **Global conflict risk premium is rising:** The Russia-Ukraine war and Black Sea security risks keep grains vulnerable to shipment interruptions, while tensions around Iran and the Strait of Hormuz maintain an upside risk for crude oil and freight insurance costs.\n"
-        "- **Red Sea disruption remains a key transmission channel:** Houthi-related attacks and rerouting via the Cape of Good Hope extend delivery times, tighten near-term energy logistics, and raise input costs across fertilizer and food supply chains.\n"
-        "- **Fed policy is still the core macro anchor:** A higher-for-longer policy stance supports USD and restrains cyclical risk appetite, but any dovish shift could quickly amplify commodity volatility through weaker real yields and softer financing conditions.\n"
-        "- **China demand is the swing factor:** Stabilizing Chinese industrial activity can offset part of the geopolitical shock by supporting energy and metals demand, while weak property and manufacturing data would cap broad commodity upside.\n"
-        "- **Cross-asset implication:** Energy shocks can spill into agriculture through fuel, transport, and fertilizer channels; this keeps wheat and broader food inflation sensitive to geopolitical escalation even when headline demand is mixed.\n"
-    ),
+    "Macro": WORLD_MACRO_INSIGHT_TEXT,
     "GC=F": (
         "**Chain-of-Thought Analysis — Gold (GC=F)**\n\n"
         "Step 1 — Macro context: The Fed's pause narrative is the dominant driver. "
@@ -236,7 +230,7 @@ def get_macro_events() -> list[dict]:
 
     Contract matches world-monitor NewsItem/Hotspot structure:
         title, lat, lon, severity ("high"|"medium"|"low"), category, country,
-        country_iso3, summary
+        country_iso3 (required for choropleth heat contribution), summary
     """
     return [
         {
@@ -246,7 +240,7 @@ def get_macro_events() -> list[dict]:
             "category": "energy",
             "country": "Iran",
             "country_iso3": "IRN",
-            "summary": "Tanker risk premiums rise as traders reassess potential disruption to a critical crude chokepoint.",
+            "summary": "Tanker risk premiums rise as traders reassess disruption risk at a critical crude chokepoint.",
         },
         {
             "title": "Naval Escorts Expanded Near Hormuz After Drone Incident",
