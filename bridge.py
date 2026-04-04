@@ -7,6 +7,7 @@ Data flow:
                             └── data/market + data/ai_engine       [fallback if backend down]
 """
 import logging
+import os
 
 import requests
 from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 LIVE_REFRESH_INTERVAL_MS = 600_000   # 10 minutes
 DEFAULT_RANGE    = "1Y"
 DEFAULT_INTERVAL = "1D"
-MACRO_BASE_URL   = "http://localhost:8000"
+MACRO_BASE_URL   = os.getenv("BACKEND_URL", "http://localhost:8000")
 MACRO_TIMEOUT_S  = 12
 
 
@@ -215,10 +216,7 @@ class AppBridge(QObject):
             self._macro_worker.wait(100)
             self._macro_worker = None
 
-        if hasattr(self._window, "macro_ai"):
-            self._window.macro_ai.set_loading(True)
-        elif hasattr(self._window, "panel_ai"):
-            self._window.panel_ai.set_loading(True)
+        self._set_macro_loading(True)
 
         self._macro_worker = _MacroFetchWorker()
         self._macro_worker.macro_data_ready.connect(self._on_macro_data_ready)
@@ -298,16 +296,16 @@ class AppBridge(QObject):
     def _on_macro_data_ready(self, news: list, insight: str) -> None:
         self._window.update_macro_news(news)
         self._window.update_macro_insight(insight)
-        if hasattr(self._window, "macro_ai"):
-            self._window.macro_ai.set_loading(False)
-        elif hasattr(self._window, "panel_ai"):
-            self._window.panel_ai.set_loading(False)
+        self._set_macro_loading(False)
 
     def _on_macro_error(self, message: str) -> None:
         logger.error("Macro fetch failed: %s", message)
         self._window.update_macro_news([])
         self._window.update_macro_insight(f"Macro data fetch failed:\n\n{message}")
+        self._set_macro_loading(False)
+
+    def _set_macro_loading(self, is_loading: bool) -> None:
         if hasattr(self._window, "macro_ai"):
-            self._window.macro_ai.set_loading(False)
+            self._window.macro_ai.set_loading(is_loading)
         elif hasattr(self._window, "panel_ai"):
-            self._window.panel_ai.set_loading(False)
+            self._window.panel_ai.set_loading(is_loading)
