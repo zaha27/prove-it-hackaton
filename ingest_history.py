@@ -23,7 +23,7 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-from config import SYMBOLS
+# Folosim maparea corectă a backend-ului
 from src.data.config import config as data_config
 from src.features.xgboost_features import XGBoostFeatureEngineer
 
@@ -56,7 +56,6 @@ def _safe_float(value: Any) -> float:
 
 
 def _feature_vector(feature_values: list[float], size: int = VECTOR_SIZE) -> list[float]:
-    """Build a stable numeric embedding vector from engineered features."""
     vec = np.array([_safe_float(v) for v in feature_values], dtype=np.float32)
     vec = np.nan_to_num(vec, nan=0.0, posinf=0.0, neginf=0.0)
     if vec.size == 0:
@@ -71,25 +70,17 @@ def _feature_vector(feature_values: list[float], size: int = VECTOR_SIZE) -> lis
 
 def _row_id(symbol: str, date: str) -> int:
     digest = hashlib.sha256(f"{symbol}:{date}".encode("utf-8")).hexdigest()
-    # Keep 63 bits from the hash directly (no modulo wrap-around).
     return int(digest[:16], 16) & ((1 << 63) - 1)
 
 
-def _prepare_symbol_dataframe(symbol: str, years: int) -> pd.DataFrame:
+def _prepare_symbol_dataframe(ticker: str, years: int) -> pd.DataFrame:
     try:
-        hist = yf.Ticker(symbol).history(period=f"{years}y", interval="1d", auto_adjust=False)
-    except RequestException as exc:
-        logger.warning("Network/API error while downloading %s history: %s", symbol, exc)
-        return pd.DataFrame()
-    except ValueError as exc:
-        logger.warning("Invalid symbol or malformed request for %s: %s", symbol, exc)
-        return pd.DataFrame()
+        hist = yf.Ticker(ticker).history(period=f"{years}y", interval="1d", auto_adjust=False)
     except Exception as exc:
-        logger.warning("Unexpected failure while downloading %s history: %s", symbol, exc)
+        logger.warning("Failure downloading %s history: %s", ticker, exc)
         return pd.DataFrame()
 
     if hist.empty:
-        logger.warning("No historical rows returned for %s", symbol)
         return pd.DataFrame()
 
     hist = hist.reset_index()
@@ -130,20 +121,22 @@ def ingest_history(
     years: int = 5,
     collection_name: str = TRAINING_COLLECTION,
 ) -> list[IngestResult]:
-    """Download, engineer, and upsert historical training rows to Qdrant."""
     qdrant = QdrantClient(url=data_config.qdrant_url)
     _ensure_collection(qdrant, collection_name)
 
     results: list[IngestResult] = []
-    for symbol in SYMBOLS:
-        raw_df = _prepare_symbol_dataframe(symbol, years=years)
+    
+    # AICI ESTE REPARAȚIA CHEIE: Iterăm prin commodity_symbols din backend
+    for commodity_name, ticker in data_config.commodity_symbols.items():
+        logger.info("Ingesting %s (%s)...", commodity_name, ticker)
+        raw_df = _prepare_symbol_dataframe(ticker, years=years)
         if raw_df.empty:
-            results.append(IngestResult(symbol=symbol, rows_ingested=0))
+            results.append(IngestResult(symbol=commodity_name, rows_ingested=0))
             continue
 
         feat_df, feature_cols = _engineer_training_rows(raw_df)
         if feat_df.empty:
-            results.append(IngestResult(symbol=symbol, rows_ingested=0))
+            results.append(IngestResult(symbol=commodity_name, rows_ingested=0))
             continue
 
         points: list[PointStruct] = []
@@ -151,8 +144,10 @@ def ingest_history(
             date_str = str(row["Date"])
             features = {col: _safe_float(row[col]) for col in feature_cols}
             vector = _feature_vector([features[col] for col in feature_cols])
+            
+            # Asociem payload-ul cu numele "GOLD", nu "GC=F"
             payload = {
-                "symbol": symbol,
+                "symbol": commodity_name,
                 "date": date_str,
                 "features": features,
                 "target_return_1d": _safe_float(row["target_return_1d"]),
@@ -164,7 +159,7 @@ def ingest_history(
             }
             points.append(
                 PointStruct(
-                    id=_row_id(symbol, date_str),
+                    id=_row_id(commodity_name, date_str),
                     vector=vector,
                     payload=payload,
                 )
@@ -176,74 +171,9 @@ def ingest_history(
                 points=points[i : i + UPSERT_BATCH_SIZE],
             )
 
-        results.append(IngestResult(symbol=symbol, rows_ingested=len(points)))
+        results.append(IngestResult(symbol=commodity_name, rows_ingested=len(points)))
 
     return results
-
-
-def get_training_data(
-    symbol: str,
-    target_horizon: int = 7,
-    collection_name: str = TRAINING_COLLECTION,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    """Load symbol data from Qdrant and return chronological 80/20 split."""
-    if target_horizon not in TARGET_HORIZONS:
-        raise ValueError(f"Unsupported target horizon: {target_horizon}. Supported: {TARGET_HORIZONS}")
-
-    qdrant = QdrantClient(url=data_config.qdrant_url)
-    target_col = f"target_return_{target_horizon}d"
-
-    records: list[dict[str, Any]] = []
-    offset = None
-    while True:
-        points, offset = qdrant.scroll(
-            collection_name=collection_name,
-            scroll_filter=Filter(
-                must=[FieldCondition(key="symbol", match=MatchValue(value=symbol))]
-            ),
-            with_payload=True,
-            with_vectors=False,
-            limit=SCROLL_BATCH_SIZE,
-            offset=offset,
-        )
-        if not points:
-            break
-        for point in points:
-            payload = point.payload or {}
-            feats = payload.get("features")
-            target = payload.get(target_col)
-            date = payload.get("date")
-            if not isinstance(feats, dict) or target is None or date is None:
-                continue
-            records.append({"date": str(date), "features": feats, "target": float(target)})
-        if offset is None:
-            break
-
-    if not records:
-        raise ValueError(f"No training data found in Qdrant for symbol={symbol}")
-
-    records.sort(key=lambda x: x["date"])
-    X = pd.DataFrame.from_records([r["features"] for r in records], coerce_float=True)
-    y = pd.Series([r["target"] for r in records], name=target_col)
-
-    valid = X.notna().all(axis=1) & y.notna()
-    X = X.loc[valid].reset_index(drop=True)
-    y = y.loc[valid].reset_index(drop=True)
-
-    if len(X) < MIN_ROWS_FOR_SPLIT:
-        raise ValueError(f"Not enough rows for train/test split for {symbol}: {len(X)}")
-
-    split_idx = _calculate_chronological_split_index(len(X), TRAIN_TEST_SPLIT_RATIO)
-    X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
-    y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
-    return X_train, X_test, y_train, y_test
-
-
-def _calculate_chronological_split_index(total_rows: int, ratio: float) -> int:
-    desired_split_idx = int(total_rows * ratio)
-    min_split_idx = 1
-    max_split_idx = total_rows - 1
-    return max(min_split_idx, min(max_split_idx, desired_split_idx))
 
 
 def main() -> int:

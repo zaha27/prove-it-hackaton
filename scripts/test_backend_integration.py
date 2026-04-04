@@ -1,35 +1,28 @@
 #!/usr/bin/env python3
-"""Test full backend integration: Ollama + XGBoost + Gemma4."""
+"""Test full backend integration: XGBoost + DeepSeek."""
 
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add root to path so 'src' can be imported correctly
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def test_ollama_connection():
-    """Test Ollama connection."""
-    print("\n1. Testing Ollama connection...")
-    from src.rl.ollama_client import OllamaClient
+def test_deepseek_connection():
+    """Test DeepSeek connection."""
+    print("\n1. Testing DeepSeek API connection...")
+    from src.data.clients.deepseek_client import DeepSeekClient
+    from src.data.config import config
 
-    ollama = OllamaClient()
-    health = ollama.check_health()
-
-    print(f"   Status: {health['status']}")
-    print(f"   Models: {health.get('available_models', [])}")
-    print(f"   Required model: {health.get('required_model')}")
-    print(f"   Model available: {health.get('model_available', False)}")
-
-    if health['status'] != 'healthy':
-        print("   ERROR: Ollama is not healthy!")
+    if not config.deepseek_api_key:
+        print("   ERROR: DEEPSEEK_API_KEY not configured in .env!")
         return False
 
-    # Test simple generation
+    client = DeepSeekClient()
     try:
-        response = ollama.generate("Say 'test successful' in one word.")
-        print(f"   Test generation: {response.strip()[:50]}...")
-        print("   Ollama connection: OK")
+        response = client.generate("Say 'test successful' in one word.", max_tokens=10)
+        print(f"   Test generation: {response.strip()}")
+        print("   DeepSeek connection: OK")
         return True
     except Exception as e:
         print(f"   ERROR: {e}")
@@ -71,7 +64,7 @@ def test_xgboost_training():
 
 
 def test_prediction_service():
-    """Test prediction service with XGBoost + Gemma4."""
+    """Test prediction service with XGBoost + DeepSeek Validator."""
     print("\n3. Testing prediction service...")
     from src.ml.prediction_service import PredictionService
 
@@ -87,13 +80,13 @@ def test_prediction_service():
         print(f"   Final confidence: {result['final_confidence']:.2f}")
         print(f"   Recommendation: {result['recommendation']}")
 
-        if result['gemma4_analysis']:
-            print(f"   Gemma4 triggered: YES")
+        if result.get('gemma4_analysis'):
+            print(f"   DeepSeek triggered: YES")
             analysis = result['gemma4_analysis']
-            print(f"   Gemma4 confidence: {analysis.get('confidence', 0):.2f}")
-            print(f"   Gemma4 conclusion: {analysis.get('conclusion', 'N/A')[:80]}...")
+            print(f"   DeepSeek confidence: {analysis.get('confidence', 0):.2f}")
+            print(f"   DeepSeek conclusion: {str(analysis.get('conclusion', 'N/A'))[:80]}...")
         else:
-            print(f"   Gemma4 triggered: NO (high confidence)")
+            print(f"   DeepSeek triggered: NO (high confidence)")
 
         # Test prediction for OIL
         print("\n   Predicting OIL...")
@@ -136,8 +129,8 @@ def test_batch_prediction():
 
 
 def test_explainable_predictions():
-    """Test XGBoost explanations with Gemma4 validation."""
-    print("\n5. Testing explainable predictions with Gemma4 validation...")
+    """Test XGBoost explanations with DeepSeek validation."""
+    print("\n5. Testing explainable predictions with DeepSeek validation...")
     from src.ml.prediction_service import PredictionService
     from src.ml.presentation import format_prediction_for_public
 
@@ -159,13 +152,13 @@ def test_explainable_predictions():
 
         print(f"\n   XGBoost Reasoning: {result['xgboost']['reasoning'][:100]}...")
 
-        # Gemma4 validation
-        gemma4 = result['gemma4_validation']
-        print(f"\n   Gemma4 Validation:")
-        print(f"      Agreement: {gemma4['agreement']:.0%}")
-        print(f"      Valid: {gemma4.get('valid', 'N/A')}")
-        if gemma4.get('critique'):
-            print(f"      Critique: {gemma4['critique'][:80]}...")
+        # DeepSeek validation (using gemma4 dict keys for UI compatibility)
+        val_data = result.get('gemma4_validation', {})
+        print(f"\n   DeepSeek Validation:")
+        print(f"      Agreement: {val_data.get('agreement', 0):.0%}")
+        print(f"      Valid: {val_data.get('valid', 'N/A')}")
+        if val_data.get('critique'):
+            print(f"      Critique: {val_data['critique'][:80]}...")
 
         print(f"\n   Final Recommendation: {result['final_recommendation']}")
 
@@ -190,12 +183,12 @@ def main():
     print("=" * 70)
     print("Backend Integration Test")
     print("=" * 70)
-    print("\nTesting: Ollama + XGBoost + Gemma4 integration")
+    print("\nTesting: XGBoost + DeepSeek Validator integration")
 
     results = []
 
     # Run tests
-    results.append(("Ollama Connection", test_ollama_connection()))
+    results.append(("DeepSeek Connection", test_deepseek_connection()))
     results.append(("XGBoost Training", test_xgboost_training()))
     results.append(("Prediction Service", test_prediction_service()))
     results.append(("Batch Prediction", test_batch_prediction()))

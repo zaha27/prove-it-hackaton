@@ -4,16 +4,15 @@
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.rl.deep_researcher import DeepResearcher
-
 
 def main():
     """Main entry point."""
     print("=" * 60)
-    print("🧠 Deep Research Agent")
+    print("🧠 Deep Research Agent (Powered by DeepSeek)")
     print("=" * 60)
     print()
 
@@ -23,10 +22,9 @@ def main():
     print("🔍 Checking component health...")
     health = researcher.check_health()
 
-    print(f"  Ollama: {health['ollama']['status']}")
-    if not health['ollama'].get('model_available'):
-        print(f"  ⚠️  Model {health['ollama'].get('required_model')} not found")
-        print("  Run: ollama pull gemma4:2b")
+    print(f"  DeepSeek API: {health['deepseek']['status']} ({health['deepseek']['model']})")
+    if health['deepseek']['status'] == "unconfigured":
+        print("  ⚠️  DEEPSEEK_API_KEY not set in .env")
         return 1
 
     print(f"  Qdrant: {health['qdrant']['status']}")
@@ -43,7 +41,6 @@ def main():
         print("\n👋 Goodbye!")
 
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

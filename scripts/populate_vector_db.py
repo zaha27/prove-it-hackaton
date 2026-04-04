@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Populate vector DB with 10 years of historical data and XGBoost features."""
+""" vector DB with 10 years of historical data and XGBoost features."""
 
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.data.vector_schema import init_vector_schema
 from src.data.ingestion.enhanced_ingestor import EnhancedTimeSeriesIngestor

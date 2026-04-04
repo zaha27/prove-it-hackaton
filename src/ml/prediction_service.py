@@ -6,9 +6,11 @@ import pandas as pd
 
 from src.data.clients.yfinance_client import YFinanceClient
 from src.data.services.price_service import PriceService
+from src.data.clients.deepseek_client import DeepSeekClient
 from src.features.xgboost_features import XGBoostFeatureEngineer
 from src.ml.chain_of_thought import create_chain_of_thought_logger
 from src.ml.xgboost_trainer import XGBoostTrainer
+
 class PredictionService:
     """Unified prediction service: XGBoost (Quant) + DeepSeek (Risk Manager)."""
 
@@ -22,6 +24,7 @@ class PredictionService:
         self.confidence_threshold = confidence_threshold
         self.feature_engineer = XGBoostFeatureEngineer()
         self.price_service = PriceService()
+        self.llm_client = DeepSeekClient()
 
     def predict(
         self,
@@ -461,7 +464,8 @@ Respond in JSON format:
 }"""
 
         try:
-            response = self.ollama.generate(
+            # ---> FOLOSIM self.llm_client (DeepSeekClient) în loc de self.ollama <---
+            response = self.llm_client.generate(
                 prompt=prompt,
                 system="You are a financial analyst validating XGBoost predictions. Be critical but fair. Focus on technical indicator validity. Respond in JSON format with valid, agreement (0-100), critique, enhanced_reasoning, and key_insights fields.",
             )
@@ -710,7 +714,7 @@ Respond in JSON format:
             {
                 "title": f"{commodity} Market Update",
                 "snippet": f"Latest {commodity} price movements and technical analysis...",
-                "url": "https://example.com/market-news",
+                "url": "[https://example.com/market-news](https://example.com/market-news)",
             }
         ]
 
@@ -810,7 +814,8 @@ Respond in JSON format:
 }"""
 
         try:
-            response = self.ollama.generate(
+            # ---> FOLOSIM self.llm_client (DeepSeekClient) în loc de self.ollama <---
+            response = self.llm_client.generate(
                 prompt=prompt,
                 system="You are a meticulous financial analyst validating XGBoost predictions. Show your complete step-by-step reasoning process. Be thorough and critical.",
             )

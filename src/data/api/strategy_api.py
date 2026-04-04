@@ -84,7 +84,7 @@ def get_validated_insight(commodity: str) -> dict[str, Any]:
             for s in result["strategies"]
         ],
         "best_strategy": result.get("best_strategy"),
-        "emergency_alert": None,  # Will be populated separately
+        "emergency_alert": None,  # Will be d separately
         "generated_at": datetime.utcnow().isoformat(),
     }
 

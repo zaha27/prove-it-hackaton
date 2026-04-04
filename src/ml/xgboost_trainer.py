@@ -231,10 +231,15 @@ class XGBoostTrainer:
     ) -> dict[str, xgb.XGBRegressor]:
         """Train models for all configured commodity symbols."""
         trained_models: dict[str, xgb.XGBRegressor] = {}
-        for symbol in SYMBOLS:
-            trained_models[symbol] = self.train_model(
-                symbol, target_horizon=target_horizon, force_retrain=force_retrain
-            )
+        
+        for symbol in config.commodity_symbols.keys():
+            try:
+                trained_models[symbol] = self.train_model(
+                    symbol, target_horizon=target_horizon, force_retrain=force_retrain
+                )
+            except Exception as e:
+                logger.error(f"Skipping model training for {symbol}: {e}")
+                
         return trained_models
 
     def load_model(self, commodity: str) -> xgb.XGBRegressor:
