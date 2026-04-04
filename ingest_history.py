@@ -49,7 +49,7 @@ def _safe_float(value: Any) -> float:
     try:
         if pd.isna(value):
             return 0.0
-    except Exception:
+    except (TypeError, ValueError):
         return 0.0
     return float(value)
 
@@ -224,7 +224,10 @@ def get_training_data(
     if len(X) < 5:
         raise ValueError(f"Not enough rows for train/test split for {symbol}: {len(X)}")
 
-    split_idx = max(1, min(len(X) - 1, math.floor(len(X) * TRAIN_TEST_SPLIT_RATIO)))
+    desired_split_idx = math.floor(len(X) * TRAIN_TEST_SPLIT_RATIO)
+    min_split_idx = 1
+    max_split_idx = len(X) - 1
+    split_idx = max(min_split_idx, min(max_split_idx, desired_split_idx))
     X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
     return X_train, X_test, y_train, y_test
