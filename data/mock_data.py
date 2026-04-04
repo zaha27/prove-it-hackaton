@@ -172,7 +172,7 @@ _MOCK_AI_INSIGHTS = {
 
 def get_price_data(symbol: str, period_days: int = 30) -> dict:
     """Return realistic mock OHLCV data for the requested period."""
-    random.seed(f"{symbol}:{int(period_days)}")
+    random.seed(hash((symbol, int(period_days))) % 1_000_000)
     base = _BASE_PRICES.get(symbol, 100.0)
 
     today = datetime.today()
