@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+DAILY_INTERVAL_THRESHOLD_DAYS = 90
 
 
 def get_price_data(symbol: str, period_days: int = 30) -> Optional[dict]:
@@ -24,7 +25,7 @@ def get_price_data(symbol: str, period_days: int = 30) -> Optional[dict]:
         period_days = max(2, int(period_days))
         end = datetime.today()
         start = end - timedelta(days=period_days)
-        interval = "1d" if period_days <= 90 else "1wk"
+        interval = "1d" if period_days <= DAILY_INTERVAL_THRESHOLD_DAYS else "1wk"
         ticker = yf.Ticker(symbol)
         df = ticker.history(
             start=start.strftime("%Y-%m-%d"),

@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 logger = logging.getLogger(__name__)
+_EPS = 1e-9
 
 # Perplexity palette — near-black + baby blue (matches ui/styles/theme.py)
 _BG     = "#080808"   # deepest bg
@@ -98,7 +99,7 @@ def build_candlestick(ohlcv: dict, indicator: str = "none") -> str:
             delta = close_s.diff()
             gain = delta.clip(lower=0).rolling(window=14).mean()
             loss = (-delta.clip(upper=0)).rolling(window=14).mean()
-            rs = gain / loss.replace(0, pd.NA)
+            rs = gain / loss.replace(0, _EPS)
             rsi = 100 - (100 / (1 + rs))
             fig.add_trace(go.Scatter(x=dates, y=rsi, mode="lines", line=dict(color=_ACCENT, width=1.5), name="RSI"), row=2, col=1)
             fig.add_hline(y=70, line=dict(color=_DIM, width=1, dash="dot"), row=2, col=1)

@@ -6,6 +6,7 @@ import logging
 from PyQt6.QtCore import QThread, pyqtSignal, QObject, QTimer
 
 logger = logging.getLogger(__name__)
+LIVE_REFRESH_INTERVAL_MS = 30_000
 
 
 class _FetchWorker(QThread):
@@ -86,7 +87,7 @@ class AppBridge(QObject):
 
         self._current_symbol: str | None = None
         self._live_timer = QTimer(self)
-        self._live_timer.setInterval(30_000)
+        self._live_timer.setInterval(LIVE_REFRESH_INTERVAL_MS)
         self._live_timer.timeout.connect(self._on_live_tick)
         self._live_timer.start()
 
