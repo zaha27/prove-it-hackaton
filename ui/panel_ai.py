@@ -154,8 +154,9 @@ class PanelAI(QWidget):
         self._recommendation_label.setStyleSheet(f"color: {color}; {base_style}")
 
     def update_consensus(self, consensus_result: dict) -> None:
-        """Display XGBoost + DeepSeek neuro-symbolic analysis result with rich HTML."""
-        logger.info(f"PanelAI: updating consensus with dict keys: {list(consensus_result.keys()) if isinstance(consensus_result, dict) else type(consensus_result)}")
+        """Display XGBoost + DeepSeek neuro-symbolic analysis result with clean, professional HTML."""
+        import logging
+        logger = logging.getLogger(__name__)
         
         self._timer.stop()
         self._status_label.setText("")
@@ -164,7 +165,7 @@ class PanelAI(QWidget):
         if not isinstance(consensus_result, dict):
             error_html = f"""
             <div style="color: #F87171; font-family: sans-serif; padding: 20px;">
-                <h3>⚠️ Data Format Error</h3>
+                <h3>Data Format Error</h3>
                 <p>Expected a dictionary from the backend, but received:</p>
                 <pre style="background: #111111; padding: 10px; border-radius: 4px; color: #D1D5DB; white-space: pre-wrap;">{str(consensus_result)}</pre>
             </div>
@@ -189,9 +190,9 @@ class PanelAI(QWidget):
                 
             self.set_recommendation(recommendation)
             
-            # Prepare HTML Design
+            # Prepare HTML Design (No emojis)
             status_color = "#4ADE80" if consensus_reached else "#FCD34D"
-            status_text = "✓ Consensus Reached" if consensus_reached else "⚠ No Consensus (Max rounds hit)"
+            status_text = "Consensus Reached" if consensus_reached else "No Consensus (Max rounds hit)"
             
             html_parts = []
             html_parts.append(f"""
@@ -212,7 +213,7 @@ class PanelAI(QWidget):
                 top_features = xgboost.get("top_features", [])
                 if isinstance(top_features, list) and top_features:
                     html_parts.append("""
-                    <h3 style="color: #93C5FD; border-bottom: 1px solid #262626; padding-bottom: 5px; font-weight: 500;">🧠 XGBoost Core Drivers</h3>
+                    <h3 style="color: #93C5FD; border-bottom: 1px solid #262626; padding-bottom: 5px; font-weight: 500;">XGBoost Core Drivers</h3>
                     <table width="100%" cellspacing="0" cellpadding="6" style="margin-bottom: 25px; border-collapse: collapse;">
                     """)
                     
@@ -250,7 +251,7 @@ class PanelAI(QWidget):
                 # Escape HTML chars to prevent breaking rendering
                 safe_reasoning = str(final_reasoning).replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
                 html_parts.append(f"""
-                <h3 style="color: #4ADE80; border-bottom: 1px solid #262626; padding-bottom: 5px; font-weight: 500;">🛡️ DeepSeek Risk Manager Verdict</h3>
+                <h3 style="color: #4ADE80; border-bottom: 1px solid #262626; padding-bottom: 5px; font-weight: 500;">DeepSeek Risk Manager Verdict</h3>
                 <div style="color: #E5E7EB; font-size: 13px; line-height: 1.6; background: rgba(74, 222, 128, 0.05); padding: 12px; border-radius: 6px; border: 1px solid rgba(74, 222, 128, 0.1);">
                     {safe_reasoning}
                 </div>
@@ -260,7 +261,7 @@ class PanelAI(QWidget):
             debate_history = consensus_result.get("debate_history", [])
             if isinstance(debate_history, list) and debate_history:
                 html_parts.append("""
-                <h3 style="color: #9CA3AF; border-bottom: 1px solid #262626; padding-bottom: 5px; margin-top: 30px; font-weight: 500;">⚖️ Internal Debate Log</h3>
+                <h3 style="color: #9CA3AF; border-bottom: 1px solid #262626; padding-bottom: 5px; margin-top: 30px; font-weight: 500;">Internal Debate Log</h3>
                 """)
                 for i, round_data in enumerate(debate_history, 1):
                     if not isinstance(round_data, dict): continue
@@ -300,10 +301,6 @@ class PanelAI(QWidget):
 
             # Combine and set HTML
             final_html = "".join(html_parts)
-            
-            # Print to console for debugging
-            logger.debug(f"Rendered HTML length: {len(final_html)}")
-            
             self._text_edit.setHtml(final_html)
             self._indicator.setStyleSheet("background:#4ADE80; border-radius:3px; margin-left:6px;")
 
@@ -311,14 +308,14 @@ class PanelAI(QWidget):
             logger.exception("Failed to render consensus HTML")
             error_html = f"""
             <div style="color: #F87171; font-family: sans-serif; padding: 20px;">
-                <h3>⚠️ Rendering Error</h3>
+                <h3>Rendering Error</h3>
                 <p>Failed to parse the AI analysis:</p>
                 <pre style="background: #111111; padding: 10px; border-radius: 4px; color: #D1D5DB;">{str(e)}</pre>
             </div>
             """
             self._text_edit.setHtml(error_html)
             self._indicator.setStyleSheet("background:#F87171; border-radius:3px; margin-left:6px;")
-
+            
     def set_text(self, text: str) -> None:
         self._timer.stop()
         self._status_label.setText("")

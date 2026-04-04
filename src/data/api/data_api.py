@@ -171,7 +171,15 @@ def clear_caches() -> None:
 
 
 # Commodity constants for convenience
-SUPPORTED_COMMODITIES = ["GOLD", "OIL"]
+# Commodity constants for convenience
+SUPPORTED_COMMODITIES = [
+    "GOLD", 
+    "SILVER", 
+    "OIL", 
+    "NATURAL_GAS", 
+    "WHEAT", 
+    "COPPER"
+]
 
 
 def get_supported_commodities() -> list[str]:

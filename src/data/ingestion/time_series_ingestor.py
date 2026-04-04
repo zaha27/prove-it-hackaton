@@ -291,7 +291,8 @@ class TimeSeriesIngestor:
         Returns:
             Dictionary mapping commodity to count
         """
-        commodities = ["GOLD", "OIL"]
+        # --- AICI SE ADAUGĂ LISTA COMPLETĂ ---
+        commodities = ["GOLD", "SILVER", "OIL", "NATURAL_GAS", "WHEAT", "COPPER"]
         results = {}
 
         for commodity in commodities:
@@ -305,7 +306,7 @@ class TimeSeriesIngestor:
                 results[commodity] = 0
 
         return results
-
+    
     def get_pattern_count(self, commodity: str | None = None) -> int:
         """Get total number of patterns in the collection.
 

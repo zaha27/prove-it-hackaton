@@ -344,7 +344,8 @@ class EnhancedTimeSeriesIngestor:
         Returns:
             Dictionary mapping commodity to count
         """
-        commodities = ["GOLD", "OIL"]
+        # --- AICI SE ADAUGĂ LISTA COMPLETĂ ---
+        commodities = ["GOLD", "SILVER", "OIL", "NATURAL_GAS", "WHEAT", "COPPER"]
         results = {}
 
         for commodity in commodities:

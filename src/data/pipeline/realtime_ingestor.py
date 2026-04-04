@@ -26,8 +26,8 @@ class RealtimeIngestor:
 
         # Track recent prices for pattern detection
         self._price_buffer: dict[str, list[dict[str, Any]]] = {
-            "GOLD": [],
-            "OIL": [],
+            "GOLD": [], "SILVER": [], "OIL": [], 
+            "NATURAL_GAS": [], "WHEAT": [], "COPPER": []
         }
         self._buffer_size = 20  # Keep last 20 price points
 
