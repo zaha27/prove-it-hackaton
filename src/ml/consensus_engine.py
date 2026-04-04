@@ -79,6 +79,8 @@ class ConsensusEngine:
         xgboost_result: dict,
         price_data: dict,
         yahoo_news: list[dict],
+        user_profile: dict | None = None,
+        # Legacy compat
         risk_profile: str = "Balanced",
     ) -> ConsensusResult:
         """
@@ -89,11 +91,22 @@ class ConsensusEngine:
         """
         logger.info("Neuro-Symbolic pipeline starting for %s", commodity)
 
+        # Resolve profile — dict takes precedence over legacy string
+        profile = user_profile or {}
+        if not profile and risk_profile != "Balanced":
+            _str_to_score = {"Conservative": 2, "Balanced": 3, "Aggressive": 4}
+            s = _str_to_score.get(risk_profile, 3)
+            profile = {"risk_score": s, "investment_horizon": 3, "market_familiarity": 3}
+
         yahoo_summary = self._summarize_yahoo_news(yahoo_news)
         xgboost_summary = self._format_xgboost_result(xgboost_result)
 
         # --- XGBoost position (The Quant) ---
-        xgb_direction = self._xgboost_to_direction(xgboost_result)
+        # Apply user risk profile to XGBoost confidence threshold
+        from data.user_manager import UserManager
+        xgb_threshold = UserManager.get_xgb_confidence_threshold(profile)
+
+        xgb_direction = self._xgboost_to_direction(xgboost_result, threshold=xgb_threshold)
         xgb_confidence = float(xgboost_result.get("confidence", 0.5))
         xgb_prediction_pct = float(xgboost_result.get("prediction", 0))
 
@@ -101,7 +114,8 @@ class ConsensusEngine:
             f"XGBoost Quantitative Signal — {commodity}\n"
             f"Direction: {xgb_direction.upper()}\n"
             f"Predicted change: {xgb_prediction_pct:+.2%}\n"
-            f"Model confidence: {xgb_confidence:.0%}\n\n"
+            f"Model confidence: {xgb_confidence:.0%}  "
+            f"(threshold for this user: {xgb_threshold:.0%})\n\n"
             f"Technical breakdown:\n{xgboost_summary}"
         )
         quant_position = {
@@ -118,7 +132,7 @@ class ConsensusEngine:
             price_data=price_data,
             xgb_direction=xgb_direction,
             xgb_confidence=xgb_confidence,
-            risk_profile=risk_profile,
+            user_profile=profile,
         )
 
         ds_position = ds_response.get("position", {})
@@ -172,6 +186,8 @@ class ConsensusEngine:
         price_data: dict,
         xgb_direction: str,
         xgb_confidence: float,
+        user_profile: dict | None = None,
+        # legacy kept for compat
         risk_profile: str = "Balanced",
     ) -> dict:
         """Call DeepSeek to validate the XGBoost signal against macro news."""
@@ -179,24 +195,10 @@ class ConsensusEngine:
         current_price = price_data.get("current_price", price_data.get("current", "N/A"))
         change_24h = price_data.get("change_24h", price_data.get("change_24h_pct", "N/A"))
 
-        _RISK_INSTRUCTIONS = {
-            "Conservative": (
-                "The user has a CONSERVATIVE risk profile. "
-                "Prioritize capital preservation. Only validate BUY/SELL signals if news clearly supports them. "
-                "Default to HOLD when uncertain. Lower confidence scores when news is mixed."
-            ),
-            "Balanced": (
-                "The user has a BALANCED risk profile. "
-                "Follow the XGBoost signal unless macro context clearly contradicts it. "
-                "Give equal weight to quantitative and fundamental signals."
-            ),
-            "Aggressive": (
-                "The user has an AGGRESSIVE risk profile. "
-                "Amplify conviction when XGBoost and news align. "
-                "Accept higher risk — lean toward stronger directional calls (BUY/SELL over HOLD)."
-            ),
-        }
-        risk_instruction = _RISK_INSTRUCTIONS.get(risk_profile, _RISK_INSTRUCTIONS["Balanced"])
+        # Build granular user context for DeepSeek prompt
+        profile = user_profile or {}
+        from data.user_manager import UserManager
+        risk_instruction = UserManager.get_deepseek_context(profile)
 
         prompt = f"""## XGBoost Quantitative Model — {commodity}
 {xgboost_summary}
@@ -297,8 +299,19 @@ Respond ONLY with valid JSON:
             },
         }
 
-    def _xgboost_to_direction(self, result: dict) -> str:
+    def _xgboost_to_direction(self, result: dict, threshold: float = 0.70) -> str:
+        """
+        Convert XGBoost output to direction.
+        Respects user risk profile: conservative users need higher confidence
+        before the model issues a directional signal.
+        """
         prediction = float(result.get("prediction", 0))
+        confidence = float(result.get("confidence", 0))
+
+        # If model confidence is below the user's threshold, default to HOLD
+        if confidence < threshold:
+            return "hold"
+
         if prediction > 0.005:
             return "buy"
         elif prediction < -0.005:

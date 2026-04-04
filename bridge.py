@@ -34,7 +34,7 @@ class _FetchWorker(QThread):
         interval_str: str = DEFAULT_INTERVAL,
         include_context: bool = True,
         use_consensus: bool = True,
-        risk_profile: str = "Balanced",
+        user_profile: dict | None = None,
         parent=None,
     ):
         super().__init__(parent)
@@ -43,7 +43,7 @@ class _FetchWorker(QThread):
         self.interval_str    = interval_str
         self.include_context = include_context
         self.use_consensus   = use_consensus
-        self.risk_profile    = risk_profile
+        self.user_profile    = user_profile or {}
         self._cancelled      = False
 
     def cancel(self) -> None:
@@ -80,7 +80,7 @@ class _FetchWorker(QThread):
                     # Use new consensus endpoint if enabled
                     if self.use_consensus:
                         consensus_result = backend_client.get_consensus(
-                            self.symbol, risk_profile=self.risk_profile
+                            self.symbol, user_profile=self.user_profile
                         )
                         # Fallback to fast insight if consensus is unavailable/errored
                         if self._is_consensus_invalid(consensus_result):
@@ -257,17 +257,16 @@ class AppBridge(QObject):
         # Show animated loading in AI panel
         self._window.show_ai_loading(symbol)
 
-        # Read risk profile from AI panel before launching the worker
-        risk_profile = "Balanced"
-        if hasattr(self._window, "panel_ai") and hasattr(self._window.panel_ai, "get_risk_profile"):
-            risk_profile = self._window.panel_ai.get_risk_profile()
+        # Load full user profile before every fetch
+        from data.user_manager import UserManager
+        user_profile = UserManager.load_profile()
 
         self._worker = _FetchWorker(
             symbol,
             range_str=self._current_range,
             interval_str=self._current_interval,
             include_context=include_context,
-            risk_profile=risk_profile,
+            user_profile=user_profile,
         )
         self._worker.data_ready.connect(self._on_data_ready)
         self._worker.error_occurred.connect(self._on_error)

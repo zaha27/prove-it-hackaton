@@ -103,14 +103,15 @@ async def get_consensus_analysis(
     Returns the full analysis including XGBoost input and DeepSeek's reality check.
     """
     try:
-        # Body fields take precedence over query params
         if request_body:
-            request = request_body
             request = ConsensusRequest(
                 commodity=commodity.upper(),
                 max_rounds=request_body.max_rounds,
                 agreement_threshold=request_body.agreement_threshold,
                 risk_profile=request_body.risk_profile,
+                risk_score=request_body.risk_score,
+                investment_horizon=request_body.investment_horizon,
+                market_familiarity=request_body.market_familiarity,
             )
         else:
             request = ConsensusRequest(

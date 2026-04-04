@@ -297,16 +297,17 @@ class ConsensusResponse(BaseModel):
 
 
 class ConsensusRequest(BaseModel):
-    """Request for consensus analysis."""
+    """Request for consensus analysis with full investor profile."""
 
     commodity: str = Field(..., description="Commodity symbol")
-    max_rounds: int = Field(
-        5, description="Maximum debate rounds", ge=1, le=10
-    )
-    agreement_threshold: float = Field(
-        0.8, description="Agreement threshold for consensus", ge=0.0, le=1.0
-    )
+    max_rounds: int = Field(3, description="Maximum rounds", ge=1, le=10)
+    agreement_threshold: float = Field(0.8, ge=0.0, le=1.0)
+    # Legacy string kept for backward compat
     risk_profile: str = Field(
         "Balanced",
-        description="User risk tolerance: Conservative, Balanced, or Aggressive",
+        description="Conservative | Balanced | Aggressive",
     )
+    # Granular profile fields (Robo-Advisor)
+    risk_score: int = Field(3, description="1 (Low) to 5 (High)", ge=1, le=5)
+    investment_horizon: int = Field(3, description="1 (Days) to 5 (Years)", ge=1, le=5)
+    market_familiarity: int = Field(3, description="1 (Novice) to 5 (Pro)", ge=1, le=5)

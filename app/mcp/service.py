@@ -278,11 +278,18 @@ class MCPService:
                 gemini_mcp=self if self._use_real_gemini else None,
             )
 
+            user_profile = {
+                "risk_score": getattr(request, "risk_score", 3),
+                "investment_horizon": getattr(request, "investment_horizon", 3),
+                "market_familiarity": getattr(request, "market_familiarity", 3),
+                "preferred_strategy": getattr(request, "risk_profile", "Balanced"),
+            }
+
             result = await consensus_engine.reach_consensus(
                 commodity=commodity,
                 xgboost_result=xgb_result,
                 price_data=price_data,
-                risk_profile=getattr(request, "risk_profile", "Balanced"),
+                user_profile=user_profile,
                 yahoo_news=[
                     {
                         "title": n.title,

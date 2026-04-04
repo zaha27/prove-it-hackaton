@@ -19,7 +19,7 @@ from datetime import datetime
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QSplitter,
-    QVBoxLayout, QStatusBar, QLabel, QTabWidget, QFrame,
+    QVBoxLayout, QStatusBar, QLabel, QTabWidget, QFrame, QPushButton,
 )
 from PyQt6.QtCore import Qt, QTimer, QEvent
 from PyQt6.QtGui import QMovie
@@ -310,11 +310,11 @@ class MainWindow(QMainWindow):
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.setSpacing(0)
 
-        # Rand 1 — titlu app centrat
+        # Rand 1 — titlu app centrat + buton profil dreapta
         title_bar = QWidget()
         title_bar.setFixedHeight(38)
         title_row = QHBoxLayout(title_bar)
-        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setContentsMargins(18, 0, 12, 0)
 
         app_title = QLabel("AI Commodity Analyzer")
         app_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -324,7 +324,27 @@ class MainWindow(QMainWindow):
             "font-weight: 700;"
             "letter-spacing: 0.2px;"
         )
+        title_row.addStretch()
         title_row.addWidget(app_title)
+        title_row.addStretch()
+
+        # Buton profil investor
+        self._profile_btn = QPushButton("My Investor Profile")
+        self._profile_btn.setFixedHeight(26)
+        self._profile_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: #111111; color: #93C5FD;"
+            "  border: 1px solid #1C1C1C; border-radius: 6px;"
+            "  font-size: 11px; font-weight: 600; padding: 0 12px;"
+            "  letter-spacing: 0.2px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #1E3A5F; border-color: #93C5FD;"
+            "}"
+            "QPushButton:pressed { background: #2563EB; }"
+        )
+        self._profile_btn.clicked.connect(self._open_profile_dialog)
+        title_row.addWidget(self._profile_btn)
         vbox.addWidget(title_bar)
 
         # Rand 2 — commodity name + pret, stanga
@@ -523,3 +543,19 @@ class MainWindow(QMainWindow):
 
     def switch_to_trading(self) -> None:
         self._tabs.setCurrentIndex(1)
+
+    # ── Investor Profile ───────────────────────────────────────────────────────
+
+    def _open_profile_dialog(self) -> None:
+        """Open the investor profile dialog from the header button."""
+        from data.user_manager import UserManager
+        from ui.dialog_profile import ProfileDialog
+        profile = UserManager.load_profile()
+        dlg = ProfileDialog(profile, parent=self)
+        dlg.exec()
+
+    def open_profile_if_new(self) -> None:
+        """Call once on app startup: show profile dialog if user.json does not exist."""
+        from data.user_manager import UserManager
+        if not UserManager.profile_exists():
+            self._open_profile_dialog()

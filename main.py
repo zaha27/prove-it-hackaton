@@ -70,6 +70,8 @@ def main() -> int:
     bridge = AppBridge(window, panel_chart)
 
     window.show()
+    # Show investor profile wizard on first launch (no user.json yet)
+    window.open_profile_if_new()
     window.sidebar.select_first()
 
     return app.exec()

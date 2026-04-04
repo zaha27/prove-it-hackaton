@@ -272,25 +272,32 @@ def get_ai_insight(symbol: str, price_data: dict | None, news: list[dict]) -> st
 def get_consensus(
     symbol: str,
     max_rounds: int = 3,
-    risk_profile: str = "Balanced",
+    user_profile: dict | None = None,
 ) -> dict | None:
     """
     Request XGBoost → DeepSeek neuro-symbolic analysis from the backend.
 
     Args:
         symbol: Frontend ticker (e.g. "GC=F")
-        max_rounds: Max debate rounds (kept for API compat, always 1 in new arch)
-        risk_profile: User-selected risk tolerance — Conservative, Balanced, or Aggressive
+        max_rounds: Max rounds (kept for API compat)
+        user_profile: Full investor profile dict from user.json
 
     Returns dict with analysis result and final recommendation, or None on error.
     """
+    from data.user_manager import UserManager
+    profile = user_profile or UserManager.load_profile()
     commodity = _TICKER_TO_BACKEND.get(symbol, symbol)
 
     try:
         resp = requests.post(
             f"{BACKEND_URL}/api/v1/mcp/consensus/{commodity}",
             params={"max_rounds": max_rounds, "agreement_threshold": 0.8},
-            json={"risk_profile": risk_profile},
+            json={
+                "risk_profile": UserManager.get_risk_profile_string(profile),
+                "risk_score": profile.get("risk_score", 3),
+                "investment_horizon": profile.get("investment_horizon", 3),
+                "market_familiarity": profile.get("market_familiarity", 3),
+            },
             timeout=120,
         )
         resp.raise_for_status()
