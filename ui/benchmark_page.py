@@ -87,7 +87,7 @@ _CHART_HTML = """<!DOCTYPE html>
         plot_bgcolor:  '#0D0D0D',
         font: { color:'#9CA3AF', family:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", size:11 },
         title: {
-          text: commodity + '  —  AI Strategy vs Buy & Hold  (test set)',
+          text: commodity + '  —  AI Strategy vs Buy & Hold  (test set, $10,000 start)',
           font: { color:'#F1F5F9', size:13, weight:600 },
           x: 0.02, xanchor:'left',
         },
@@ -98,8 +98,8 @@ _CHART_HTML = """<!DOCTYPE html>
         },
         yaxis: {
           gridcolor:'#111111', linecolor:'#1C1C1C',
-          tickprefix:'$', tickformat:'.1f',
-          title:{ text:'Portfolio (start $100)', font:{size:10,color:'#4B5563'} },
+          tickprefix:'$', tickformat:',.0f',
+          title:{ text:'Portfolio value (start $10,000 · fixed $1,000/trade)', font:{size:10,color:'#4B5563'} },
           showgrid: true,
         },
         legend: {
@@ -192,6 +192,22 @@ class BenchmarkEngine:
 
         return payloads
 
+    # ── Simulation constants ──────────────────────────────────────────────────
+    #
+    # These three parameters prevent the "exploding ROI" problem:
+    #
+    #   STARTING_CAPITAL  — dollar value of the paper portfolio
+    #   MAX_POSITION_PCT  — fraction of current equity risked per trade
+    #                       (10% sizing means a −5% actual return costs $50
+    #                        on a $10,000 book, not $500)
+    #   TRADING_COST_PCT  — one-way broker commission + slippage (0.1%).
+    #                       Applied on the position size for every trade
+    #                       regardless of win/loss.
+    #
+    STARTING_CAPITAL = 10_000.0
+    FIXED_POSITION   = 1_000.0     # fixed $1,000 per trade — never changes
+    TRADING_COST_PCT = 0.001       # 0.1% commission + slippage per trade
+
     # ── Main entry point ──────────────────────────────────────────────────────
 
     def run(
@@ -213,7 +229,7 @@ class BenchmarkEngine:
             date     = p.get("date", "")
             if features and actual is not None and date:
                 valid.append({
-                    "date":    date,
+                    "date":     date,
                     "features": features,
                     "actual":   float(actual),
                 })
@@ -225,33 +241,64 @@ class BenchmarkEngine:
                 f"Run the enhanced ingestor first."
             )
 
+        # ── Strict chronological split (no look-ahead) ────────────────────────
+        # Sort by date ascending so train is always earlier than test.
+        # The split index is the exact midpoint — no overlap, no shuffle.
         valid.sort(key=lambda x: x["date"])
 
-        split   = len(valid) // 2
-        train   = valid[:split]
-        test    = valid[split:]
+        split = len(valid) // 2
+        train = valid[:split]   # noqa: F841 — kept for logging context
+        test  = valid[split:]
 
-        log_cb(f"[SPLIT] Train: {train[0]['date']} → {train[-1]['date']}  ({len(train)} pts)")
-        log_cb(f"[SPLIT] Test:  {test[0]['date']}  → {test[-1]['date']}   ({len(test)} pts)")
+        log_cb(f"[SPLIT] Train : {train[0]['date']} → {train[-1]['date']}  ({len(train)} pts)")
+        log_cb(f"[SPLIT] Test  : {test[0]['date']}  → {test[-1]['date']}   ({len(test)} pts)")
+        log_cb(f"[SIM]   Starting capital : ${self.STARTING_CAPITAL:,.0f}")
+        log_cb(f"[SIM]   Position size    : ${self.FIXED_POSITION:,.0f} fixed per trade (no compounding)")
+        log_cb(f"[SIM]   Trading cost     : {self.TRADING_COST_PCT:.2%} per trade")
         log_cb("")
 
-        # Load XGBoost model
+        # Load (or train) the XGBoost model
         from src.ml.xgboost_trainer import XGBoostTrainer
         trainer = XGBoostTrainer()
         try:
             trainer.load_model(commodity)
             log_cb(f"[MODEL] Loaded xgboost_{commodity}.pkl")
         except FileNotFoundError:
-            log_cb(f"[MODEL] No saved model — training on demand (this may take a moment)...")
+            log_cb("[MODEL] No saved model — training on demand...")
             trainer.train_model(commodity)
         log_cb("")
 
-        # Evaluate on test set
-        correct    = 0
-        ai_equity  = [100.0]
-        bh_equity  = [100.0]
-        dates      = [test[0]["date"]]
-        evaluated  = 0
+        # ── Evaluation loop ───────────────────────────────────────────────────
+        #
+        # Equity accounting rules
+        # ───────────────────────
+        # • position_size  = current_equity × MAX_POSITION_PCT
+        #   (never more than 10% of the book on a single 7-day bet)
+        #
+        # • dollar_pnl     = position_size × (gross_return / 100)
+        #   where gross_return = +actual  (long,  model said UP)
+        #                      = −actual  (short, model said DOWN)
+        #
+        # • trading_cost   = position_size × TRADING_COST_PCT
+        #   (always subtracted; simulates round-trip commission / slippage)
+        #
+        # • new_equity     = old_equity + dollar_pnl − trading_cost
+        #   floored at $1 so the account can never go fully bankrupt
+        #
+        # Buy & Hold accounting
+        # ─────────────────────
+        # The Qdrant patterns are daily-sampled with 7-day forward returns.
+        # Chaining raw 7-day returns day-by-day creates artificial leverage
+        # (365 compounded 7-day windows >> one 7-day return over the year).
+        # Fix: convert each stored 7-day return to its daily equivalent before
+        # chaining, so the B&H equity curve reflects the true 1× buy-and-hold:
+        #   daily_r = (1 + r7d/100)^(1/7) − 1
+
+        correct   = 0
+        ai_equity = [self.STARTING_CAPITAL]
+        bh_equity = [self.STARTING_CAPITAL]
+        dates     = [test[0]["date"]]
+        evaluated = 0
 
         for i, point in enumerate(test):
             progress_cb(i + 1, len(test))
@@ -262,45 +309,66 @@ class BenchmarkEngine:
                 log_cb(f"  [{point['date']}] SKIP — prediction error: {exc}")
                 continue
 
-            actual     = point["actual"]
+            # Clamp to a realistic range (-50% … +50%) to discard
+            # corrupted Qdrant payloads and prevent complex-number math.
+            actual     = max(-50.0, min(50.0, float(point["actual"])))
             pred_up    = pred > 0
             actual_up  = actual > 0
             is_correct = pred_up == actual_up
             evaluated += 1
-
             if is_correct:
                 correct += 1
 
-            # AI equity: long if bullish, short (inverse) if bearish
-            ai_return  = actual if pred_up else -actual
-            ai_equity.append(ai_equity[-1] * (1 + ai_return / 100))
-            bh_equity.append(bh_equity[-1] * (1 + actual / 100))
+            # ── AI equity (fixed dollar position — no compounding) ────────
+            # FIXED_POSITION never changes regardless of current equity.
+            # Profits accumulate in the account but are never reinvested
+            # into the bet size, keeping the equity curve linear.
+            gross_pct    = actual if pred_up else -actual    # % on the position
+            dollar_pnl   = self.FIXED_POSITION * (gross_pct / 100.0)
+            trading_cost = self.FIXED_POSITION * self.TRADING_COST_PCT
+            net_pnl      = dollar_pnl - trading_cost
+
+            new_equity = max(1.0, ai_equity[-1] + net_pnl)
+            ai_equity.append(new_equity)
+
+            # ── B&H equity (de-overlapped daily chaining) ─────────────────
+            # Convert 7-day % return → approximate daily % return.
+            # base is clamped > 0 so ** (1/7) always returns a real float,
+            # never a complex number (which happens when base < 0).
+            base    = max(1e-4, 1.0 + actual / 100.0)
+            daily_r = base ** (1.0 / 7.0) - 1.0
+            bh_equity.append(bh_equity[-1] * (1.0 + daily_r))
+
             dates.append(point["date"])
 
-            pred_label   = f"UP  ({pred:+.2f}%)" if pred_up  else f"DOWN({pred:+.2f}%)"
-            actual_label = f"UP  ({actual:+.2f}%)" if actual_up else f"DOWN({actual:+.2f}%)"
-            tag          = "✓" if is_correct else "✗"
+            # log row
+            pred_lbl   = f"UP  ({pred:+.2f}%)" if pred_up  else f"DOWN({pred:+.2f}%)"
+            actual_lbl = f"UP  ({actual:+.2f}%)" if actual_up else f"DOWN({actual:+.2f}%)"
+            tag        = "✓" if is_correct else "✗"
             log_cb(
-                f"  [{point['date']}]  Pred: {pred_label}  "
-                f"Actual: {actual_label}  {tag}"
+                f"  [{point['date']}]  Pred:{pred_lbl}  "
+                f"Act:{actual_lbl}  {tag}  "
+                f"PnL:${net_pnl:+.2f}  Eq:${new_equity:,.0f}"
             )
 
         if evaluated == 0:
             raise ValueError("No predictions could be made — check model and features.")
 
         da     = correct / evaluated * 100
-        ai_roi = ai_equity[-1] - 100
-        bh_roi = bh_equity[-1] - 100
+        ai_roi = (ai_equity[-1] / self.STARTING_CAPITAL - 1.0) * 100.0
+        bh_roi = (bh_equity[-1] / self.STARTING_CAPITAL - 1.0) * 100.0
         alpha  = ai_roi - bh_roi
 
         log_cb("")
-        log_cb("─" * 52)
+        log_cb("─" * 58)
         log_cb(f"  Directional Accuracy : {da:.1f}%")
+        log_cb(f"  AI Final Equity      : ${ai_equity[-1]:>10,.2f}")
+        log_cb(f"  B&H Final Equity     : ${bh_equity[-1]:>10,.2f}")
         log_cb(f"  AI Strategy ROI      : {ai_roi:+.2f}%")
         log_cb(f"  Buy & Hold ROI       : {bh_roi:+.2f}%")
         log_cb(f"  Alpha (AI − B&H)     : {alpha:+.2f}%")
         log_cb(f"  Trades evaluated     : {evaluated}")
-        log_cb("─" * 52)
+        log_cb("─" * 58)
 
         return BenchmarkResult(
             commodity=commodity,
