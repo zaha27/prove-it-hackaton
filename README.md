@@ -1,178 +1,54 @@
-# AI Commodity Price Intelligence Platform
+# Commodity AI Analyzer
 
-> An AI-powered platform for traders to anticipate price fluctuations in energy and metals commodities.
+> **Institutional-grade, Neuro-Symbolic AI trading platform. Where Quantitative Mathematics meets Macroeconomic Reasoning.**
 
-## Overview
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
+![PyQt6](https://img.shields.io/badge/PyQt6-Frontend-green.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688.svg)
+![XGBoost](https://img.shields.io/badge/XGBoost-Quant_Engine-orange.svg)
+![DeepSeek](https://img.shields.io/badge/DeepSeek-Risk_Manager-blueviolet.svg)
+![Qdrant](https://img.shields.io/badge/Qdrant-Vector_DB-FF5252.svg)
 
-This hackathon project provides an intelligent solution for traders and companies who need to anticipate commodity price movements. The platform combines real-time data collection, machine learning predictions, and LLM-powered insights to deliver actionable intelligence.
+## The Problem & The Solution
 
-## Problem
+Traditional quantitative models (like pure Machine Learning or ARIMA) are mathematically precise but completely "blind" to the real world. They break down during geopolitical shocks or "Black Swan" events. Conversely, pure LLMs understand news but hallucinate numbers and lack statistical rigor.
 
-Traders and companies struggle to efficiently anticipate price fluctuations for:
-- **Energy commodities** (oil, natural gas, electricity)
-- **Metals** (gold, silver, copper, lithium)
+**The Solution:** A **Neuro-Symbolic Architecture**. 
+We combine the statistical power of **XGBoost** (The Quant) with the contextual and geopolitical reasoning of **DeepSeek LLM** (The Risk Manager). Every trade signal requires a *Consensus* between the two. If the math says "BUY" but the LLM detects a war breaking out in the news, the system overrides the trade to protect capital.
 
-## Solution
+## Key Features (The "Wow" Factor)
 
-Our platform offers:
-
-### 📊 Data Collection
-- Real-time and historical commodity prices
-- News feeds and geopolitical events
-- Market indicators and trends
-
-### 🤖 AI Capabilities
-- **Time-series prediction** for accurate price forecasting
-- **Sentiment analysis** on news and social media
-- **LLM interpretation** for natural language insights ("Why did the price spike?")
-
-### 📈 Dashboard
-- Visual analytics and charts
-- Predictions and confidence intervals
-- Actionable insights
-
-## Architecture
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Data Sources   │────▶│  Processing     │────▶│  AI Engine      │
-│  - APIs         │     │  - Feature Eng. │     │  - LLM          │
-│  - News Feeds   │     │  - Transform    │     │  - Predictions  │
-└─────────────────┘     └─────────────────┘     └────────┬────────┘
-                                                          │
-                                                          ▼
-                                                ┌─────────────────┐
-                                                │  Dashboard      │
-                                                │  - Visualize    │
-                                                │  - Insights     │
-                                                └─────────────────┘
-```
-
-## Team Structure
-
-The project is organized into 3 development tracks:
-
-| Developer | Focus Area | Exclusive Files |
-|-----------|------------|-----------------|
-| **Dev 1** | Backend - Data + AI Engine | `src/data/` |
-| **Dev 2** | Frontend - PyQt UI | `src/ui/` |
-| **Dev 3** | Charts + Final Wiring | `src/charts/` + `bridge.py` |
-
-### Dev 1 - Backend Responsibilities
-- Fetch prices from yfinance
-- Fetch news (NewsAPI/GDELT)
-- LLM API calls with Chain-of-Thought
-- Return structured insights
-- Expose: `get_price_data()`, `get_news()`, `get_ai_insight()`
-
-### Dev 2 - Frontend Responsibilities
-- QMainWindow with 3 panels
-- Sidebar: commodity selector
-- News panel + sentiment badge
-- AI text panel (scroll, stream)
-- qdarktheme + Bloomberg feel
-- Expose: `set_chart_widget()`, `on_commodity_change`, `update_news()`, `update_insight()`
-
-### Dev 3 - Charts & Integration Responsibilities
-- Plotly candlestick + volume charts
-- Technical indicators (RSI, MACD)
-- QWebEngineView embed
-- `bridge.py`: Connects UI ↔ Data ↔ Charts
-- Final integration
-- Expose: `ChartWidget`, `.load_data()`, `.set_indicator()`
-
-## Tech Stack
-
-- **Python**: 3.12+
-- **Package Manager**: uv
-- **Data**: yfinance, NewsAPI, GDELT
-- **AI/ML**: Time-series models, sentiment analysis, LLM integration
-- **Frontend**: PyQt6, qdarktheme
-- **Charts**: Plotly, QWebEngineView
-
-## Project Structure
-
-```
-prove-it-hackaton/
-├── src/                      # Source code
-│   ├── data/                 # Dev 1: Backend Data + AI Engine
-│   │   └── mock_data.py      # Mock data for development (hour 1)
-│   ├── ui/                   # Dev 2: PyQt Frontend
-│   │   └── main_window.py    # Main window with 3 panels
-│   └── charts/               # Dev 3: Graphics + Wiring
-│       ├── chart_widget.py   # Plotly chart widget
-│       └── bridge.py         # UI-Data-Chart integration
-├── tests/                    # Test files
-├── docs/                     # Documentation
-├── config/                   # Configuration files
-├── .qoder/                   # Qoder IDE configuration
-│   ├── agents/               # Custom agents
-│   └── skills/               # Custom skills
-├── Proba.md                  # Project brief and requirements
-├── README.md                 # This file
-├── pyproject.toml            # UV project configuration
-├── main.py                   # Application entry point
-├── .python-version           # Python version specification
-└── .gitignore                # Git ignore rules
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.12+
-- uv package manager
-
-### Installation
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd prove-it-hackaton
-
-# Install dependencies with uv
-uv sync
-
-# Run the application
-uv run python main.py
-```
-
-### Development Workflow
-
-Each developer works in their designated folder:
-
-1. **Dev 1** implements data fetching in `src/data/`
-2. **Dev 2** builds the UI in `src/ui/`
-3. **Dev 3** creates charts and integration in `src/charts/`
-
-Mock data is available in `src/data/mock_data.py` for parallel development.
-
-## Requirements Met
-
-- ✅ AI component (required)
-- ✅ Data flow pipeline: collection → processing → output
-- ✅ Functional MVP
-- ✅ Real use-case justified
-- ✅ Git repository with source code
-
-## Presentation Structure
-
-1. **Problem** - The issue being solved
-2. **Impact** - Why it matters
-3. **Solution** - How the platform works
-4. **Demo** - Live demonstration
-5. **Architecture** - Technical design
-6. **AI/LLM Role** - How AI contributes
-7. **Scalability** - Future improvements
-
-## Evaluation Criteria
-
-| Category | Weight |
-|----------|--------|
-| Technical Component | 35% |
-| Idea & Innovation | 30% |
-| Presentation | 35% |
+* **Neuro-Symbolic Consensus Engine:** Evaluates 104 technical features via XGBoost and cross-references them against live Yahoo Finance news using DeepSeek.
+* **Institutional Out-of-Sample Benchmark:** Prove it works! A rigorous backtesting engine using a strict 50/50 chronological split. Simulates realistic trading with fixed position sizing ($1,000/trade) and strict slippage/commission costs (0.1%).
+* **"What-If" Stress Test Simulator (God Mode):** Input a hypothetical geopolitical shock (e.g., *"Fed unexpectedly raises rates +100 bps"*), and the LLM instantly recalculates the strategy's Alpha, ROI, and Risk/Reward parameters without touching the live database.
+* **Episodic Memory via Qdrant:** The system learns from past mistakes. Predictions are vectorized and stored in Qdrant. Before making a new call, the AI retrieves similar past scenarios (RAG) to see if this pattern previously failed or succeeded.
+* **World Macro View:** A live, geo-tagged Leaflet.js map tracking supply shocks, conflicts, and central bank decisions globally.
+* **AI Alpha Strategy Report:** Automatically generates a Bloomberg-style institutional tear sheet with Entry, Stop Loss, Take Profit, and Risk Matrix, exportable to PDF.
 
 ---
 
-*Built for the Hackathon - demonstrating the intersection of AI and commodity trading intelligence.*
+## Architecture Stack
+
+1. **Frontend:** `PyQt6` for a native, lightning-fast desktop experience. Charts are rendered using `QWebEngineView` integrating *Lightweight Charts (TradingView)* and *Plotly*.
+2. **Backend Engine:** `FastAPI` serving as the brain coordinator.
+3. **Machine Learning:** `XGBoost` for predicting 7-day forward returns based on complex momentum, volatility, and volume indicators.
+4. **Agentic LLM:** `DeepSeek V3.2` API for unstructured text analysis, sentiment scoring, and reasoning.
+5. **Vector Database:** `Qdrant` running in Docker to store historical price patterns and track prediction outcomes.
+6. **Data Ingestion:** Live streams via `yfinance` (Yahoo Finance).
+
+---
+
+## Quick Start / Setup Guide
+
+This project is optimized for `uv`, the lightning-fast Python package manager.
+
+### 1. Prerequisites
+* Python 3.10+
+* Docker Desktop (for the Qdrant database)
+* `uv` installed (`pip install uv`)
+
+### 2. Environment Variables
+Create a `.env` file in the `config/` directory (or project root) and add your API keys:
+```env
+DEEPSEEK_API_KEY="your_deepseek_api_key_here"
+BACKEND_URL="http://localhost:8000"
