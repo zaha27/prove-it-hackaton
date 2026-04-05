@@ -43,7 +43,7 @@ We combine the statistical power of **XGBoost** (The Quant) with the contextual 
 This project is optimized for `uv`, the lightning-fast Python package manager.
 
 ### 1. Prerequisites
-* Python 3.10+
+* Python 3.12+
 * Docker Desktop (for the Qdrant database)
 * `uv` installed (`pip install uv`)
 
