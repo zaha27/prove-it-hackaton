@@ -78,8 +78,9 @@ def get_price_data(
         logger.warning("No backend mapping for symbol %s", symbol)
         return None
 
+    _INTERVAL_MAP = {"1D": "1d", "1W": "1wk", "1M": "1mo"}
     period   = _RANGE_TO_PERIOD.get(range_str, "1y")
-    interval = interval_str.lower()          # "1D" → "1d"
+    interval = _INTERVAL_MAP.get(interval_str, interval_str.lower())
 
     try:
         resp = requests.get(

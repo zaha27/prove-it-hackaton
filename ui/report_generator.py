@@ -173,8 +173,8 @@ _CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-  background: #050A14;
-  color: #CBD5E1;
+  background: #080808;
+  color: #E5E7EB;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
   line-height: 1.5;
@@ -192,8 +192,8 @@ html, body {
   justify-content: space-between;
   align-items: flex-start;
   padding: 22px 28px;
-  background: linear-gradient(135deg, #06101F 0%, #0D1D35 55%, #06101F 100%);
-  border: 1px solid #112240;
+  background: linear-gradient(135deg, #0D0D0D 0%, #111111 55%, #0D0D0D 100%);
+  border: 1px solid #1C1C1C;
   border-radius: 10px;
   margin-bottom: 18px;
   position: relative;
@@ -204,7 +204,7 @@ html, body {
   position: absolute;
   top: -60px; right: -60px;
   width: 200px; height: 200px;
-  background: radial-gradient(circle, rgba(59,158,255,0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.02) 0%, transparent 70%);
   pointer-events: none;
 }
 .hdr-brand {
@@ -212,7 +212,7 @@ html, body {
   font-weight: 700;
   letter-spacing: 2.5px;
   text-transform: uppercase;
-  color: #1E6EBE;
+  color: #6B7280;
   margin-bottom: 5px;
 }
 .hdr-title {
@@ -221,10 +221,10 @@ html, body {
   color: #F1F5F9;
   letter-spacing: -0.4px;
 }
-.hdr-title span { color: #3B9EFF; }
+.hdr-title span { color: #E5E7EB; }
 .hdr-sub {
   font-size: 11px;
-  color: #334155;
+  color: #374151;
   margin-top: 5px;
   letter-spacing: 0.4px;
 }
@@ -232,14 +232,13 @@ html, body {
 .hdr-symbol {
   font-size: 32px;
   font-weight: 900;
-  color: #3B9EFF;
+  color: #F1F5F9;
   font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
   letter-spacing: -0.5px;
-  text-shadow: 0 0 20px rgba(59,158,255,0.4);
 }
 .hdr-ts {
   font-size: 11px;
-  color: #334155;
+  color: #374151;
   font-family: 'SF Mono', 'Menlo', monospace;
   margin-top: 5px;
 }
@@ -261,10 +260,10 @@ html, body {
   margin-bottom: 16px;
 }
 .mc {
-  background: #06101F;
+  background: #0D0D0D;
   border-radius: 8px;
   padding: 16px 18px 14px;
-  border: 1px solid #0F2040;
+  border: 1px solid #1C1C1C;
   transition: box-shadow 0.2s;
 }
 .mc-lbl {
@@ -272,7 +271,7 @@ html, body {
   font-weight: 700;
   letter-spacing: 1.6px;
   text-transform: uppercase;
-  color: #334155;
+  color: #374151;
   margin-bottom: 7px;
 }
 .mc-val {
@@ -283,7 +282,7 @@ html, body {
 }
 .mc-sub {
   font-size: 11px;
-  color: #334155;
+  color: #374151;
   margin-top: 6px;
 }
 
@@ -295,15 +294,15 @@ html, body {
   margin-bottom: 16px;
 }
 .panel {
-  background: #06101F;
-  border: 1px solid #0F2040;
+  background: #0D0D0D;
+  border: 1px solid #1C1C1C;
   border-radius: 8px;
   overflow: hidden;
 }
 .ph {
   padding: 9px 16px;
-  background: #0A1628;
-  border-bottom: 1px solid #0F2040;
+  background: #111111;
+  border-bottom: 1px solid #1C1C1C;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -331,16 +330,16 @@ html, body {
   font-weight: 700;
   font-family: 'SF Mono', 'Menlo', monospace;
 }
-.tl-entry { background: rgba(59,158,255,0.07); border: 1px solid rgba(59,158,255,0.18); }
-.tl-stop  { background: rgba(239,68,68,0.07);  border: 1px solid rgba(239,68,68,0.18); }
-.tl-tp    { background: rgba(0,255,135,0.07);  border: 1px solid rgba(0,255,135,0.18); }
+.tl-entry { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); }
+.tl-stop  { background: rgba(239,68,68,0.07);   border: 1px solid rgba(239,68,68,0.18); }
+.tl-tp    { background: rgba(74,222,128,0.07);  border: 1px solid rgba(74,222,128,0.18); }
 .rr-row {
   display: flex;
   justify-content: space-between;
   padding: 7px 12px 0;
   font-size: 11px;
-  color: #334155;
-  border-top: 1px solid #0F2040;
+  color: #374151;
+  border-top: 1px solid #1C1C1C;
   margin-top: 6px;
 }
 .rr-val { font-weight: 700; font-family: monospace; color: #FCD34D; }
@@ -357,31 +356,31 @@ html, body {
   align-items: center;
   gap: 8px;
   padding: 5px 0;
-  border-bottom: 1px solid #0A1628;
+  border-bottom: 1px solid #111111;
 }
 .feat-row:last-child { border-bottom: none; }
 .fn {
   flex: 0 0 118px;
   font-size: 11px;
-  color: #94A3B8;
+  color: #9CA3AF;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ft { flex: 1; height: 5px; background: #0A1628; border-radius: 3px; overflow: hidden; }
+.ft { flex: 1; height: 5px; background: #111111; border-radius: 3px; overflow: hidden; }
 .fb { height: 100%; border-radius: 3px; }
 .fp { flex: 0 0 38px; text-align: right; font-size: 11px; font-family: monospace; }
 
 .ds-text {
   font-size: 12px;
   line-height: 1.7;
-  color: #94A3B8;
+  color: #9CA3AF;
   max-height: 240px;
   overflow-y: auto;
 }
 .ds-text::-webkit-scrollbar { width: 4px; }
 .ds-text::-webkit-scrollbar-track { background: transparent; }
-.ds-text::-webkit-scrollbar-thumb { background: #1E3A5F; border-radius: 2px; }
+.ds-text::-webkit-scrollbar-thumb { background: #262626; border-radius: 2px; }
 
 /* ── Portfolio Simulator ─────────────────────────── */
 .pf-row {
@@ -389,11 +388,11 @@ html, body {
   grid-template-columns: 260px 1fr;
 }
 .pf-stats { padding: 20px 20px 16px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
-.pf-lbl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #334155; margin-bottom: 3px; }
+.pf-lbl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #374151; margin-bottom: 3px; }
 .pf-amt { font-size: 22px; font-weight: 800; font-family: 'SF Mono', 'Menlo', monospace; }
 .pf-pnl { font-size: 13px; font-weight: 600; font-family: monospace; margin-top: 4px; }
-.pf-hor { font-size: 11px; color: #334155; margin-top: 3px; }
-.pf-arrow { font-size: 28px; color: #0F2040; text-align: center; line-height: 1; }
+.pf-hor { font-size: 11px; color: #374151; margin-top: 3px; }
+.pf-arrow { font-size: 28px; color: #1C1C1C; text-align: center; line-height: 1; }
 
 .chart-area { padding: 16px 14px 6px; }
 .chart-dates {
@@ -401,7 +400,7 @@ html, body {
   justify-content: space-between;
   padding: 4px 8px 0;
   font-size: 10px;
-  color: #1E3A5F;
+  color: #262626;
   font-family: monospace;
 }
 
@@ -409,9 +408,9 @@ html, body {
 .footer {
   margin-top: 20px;
   padding: 14px 16px;
-  border-top: 1px solid #0A1628;
+  border-top: 1px solid #111111;
   font-size: 10px;
-  color: #1A2E47;
+  color: #262626;
   text-align: center;
   line-height: 1.7;
 }
@@ -470,12 +469,12 @@ def _build_report_html(symbol: str, m: dict, consensus_result: dict) -> str:
             f"</div>"
         )
     if not feat_html:
-        feat_html = '<div style="color:#334155;font-size:12px;padding:8px 0;">No feature data available</div>'
+        feat_html = '<div style="color:#374151;font-size:12px;padding:8px 0;">No feature data available</div>'
 
     # ── DeepSeek reasoning
     reasoning_raw = str(consensus_result.get("final_reasoning", "") or "").strip()
     reasoning_html = escape(reasoning_raw).replace("\n", "<br>") if reasoning_raw else (
-        '<span style="color:#334155;">No geopolitical analysis available</span>'
+        '<span style="color:#374151;">No geopolitical analysis available</span>'
     )
 
     # ── SVG sparkline
@@ -501,7 +500,7 @@ def _build_report_html(symbol: str, m: dict, consensus_result: dict) -> str:
   <div class="hdr">
     <div>
       <div class="hdr-brand">Neuro-Symbolic Intelligence Platform &nbsp;·&nbsp; Institutional Grade</div>
-      <div class="hdr-title">AI Alpha <span>Strategy Report</span></div>
+      <div class="hdr-title">AI Alpha Strategy Report</div>
       <div class="hdr-sub">XGBoost Quantitative Signal &nbsp;×&nbsp; DeepSeek Macro Validator</div>
     </div>
     <div class="hdr-right">
@@ -558,11 +557,11 @@ def _build_report_html(symbol: str, m: dict, consensus_result: dict) -> str:
 
     <!-- Trade Setup -->
     <div class="panel">
-      <div class="ph" style="color:#3B9EFF;">Trade Setup</div>
+      <div class="ph" style="color:#9CA3AF;">Trade Setup</div>
       <div class="pb">
         <div class="tlevel tl-entry">
-          <span class="tl-lbl" style="color:#3B9EFF;">Entry</span>
-          <span class="tl-val" style="color:#3B9EFF;">${m['entry']:,.3f}</span>
+          <span class="tl-lbl" style="color:#D1D5DB;">Entry</span>
+          <span class="tl-val" style="color:#F1F5F9;">${m['entry']:,.3f}</span>
         </div>
         <div class="tlevel tl-stop">
           <span class="tl-lbl" style="color:#EF4444;">Stop Loss &#9660;</span>
@@ -586,7 +585,7 @@ def _build_report_html(symbol: str, m: dict, consensus_result: dict) -> str:
     <!-- Intelligence Synthesis -->
     <div class="intel">
       <div class="panel">
-        <div class="ph" style="color:#93C5FD;">XGBoost Technical Drivers</div>
+        <div class="ph" style="color:#9CA3AF;">XGBoost Technical Drivers</div>
         <div class="pb">{feat_html}</div>
       </div>
       <div class="panel">
@@ -601,9 +600,9 @@ def _build_report_html(symbol: str, m: dict, consensus_result: dict) -> str:
 
   <!-- ═══ PORTFOLIO SIMULATOR ══════════════════════════════════════════════ -->
   <div class="panel">
-    <div class="ph" style="color:#CBD5E1;">
+    <div class="ph" style="color:#9CA3AF;">
       Portfolio Simulator
-      <span style="font-weight:400;color:#334155;letter-spacing:0.5px;">
+      <span style="font-weight:400;color:#374151;letter-spacing:0.5px;">
         &nbsp; — 7-day projection · seed capital $10,000
       </span>
     </div>
@@ -681,7 +680,7 @@ class AIStrategyReportDialog(QDialog):
         self.setModal(True)
         self.resize(1240, 880)
         self.setMinimumSize(960, 720)
-        self.setStyleSheet("background: #050A14;")
+        self.setStyleSheet("background: #080808;")
 
         self._init_ui()
 
@@ -703,8 +702,8 @@ class AIStrategyReportDialog(QDialog):
         bar = QWidget()
         bar.setFixedHeight(52)
         bar.setStyleSheet(
-            "background: #06101F;"
-            "border-top: 1px solid #0F2040;"
+            "background: #080808;"
+            "border-top: 1px solid #1C1C1C;"
         )
         row = QHBoxLayout(bar)
         row.setContentsMargins(24, 0, 24, 0)
@@ -717,13 +716,13 @@ class AIStrategyReportDialog(QDialog):
             f"\u00a0\u00b7\u00a0Confidence: {self._metrics['confidence']:.0%}"
         )
         meta.setStyleSheet(
-            "color: #1E3A5F; font-size: 11px;"
+            "color: #374151; font-size: 11px;"
             "font-family: 'SF Mono', 'Menlo', monospace;"
         )
         row.addWidget(meta)
         row.addStretch()
 
-        btn_pdf = self._make_btn("Export to PDF", "#3B9EFF", "#0D1B30", "#1E3A5F", w=138)
+        btn_pdf = self._make_btn("Export to PDF", "#D1D5DB", "#111111", "#1C1C1C", w=138)
         btn_pdf.clicked.connect(self._export_pdf)
         row.addWidget(btn_pdf)
 
