@@ -159,6 +159,7 @@ class MainWindow(QMainWindow):
         self._map_placeholder: QLabel | None = None
         self._last_price_data: dict = {}
         self._last_consensus: dict = {}
+        self._last_news: list[dict] = []
         self._init_ui()
 
     # ── Construction ───────────────────────────────────────────────────────────
@@ -332,15 +333,14 @@ class MainWindow(QMainWindow):
         title_row = QHBoxLayout(title_bar)
         title_row.setContentsMargins(18, 0, 12, 0)
 
-        app_title = QLabel("AI Commodity Analyzer")
-        app_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        app_title = QLabel("Commodity AI Analyzer")
+        app_title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         app_title.setStyleSheet(
             "color: #F1F5F9;"
             "font-size: 17px;"
             "font-weight: 700;"
             "letter-spacing: 0.2px;"
         )
-        title_row.addStretch()
         title_row.addWidget(app_title)
         title_row.addStretch()
 
@@ -380,6 +380,25 @@ class MainWindow(QMainWindow):
         self._report_btn.setEnabled(False)
         self._report_btn.clicked.connect(self._open_strategy_report)
         title_row.addWidget(self._report_btn)
+
+        self._stress_btn = QPushButton("Stress Test")
+        self._stress_btn.setFixedHeight(26)
+        self._stress_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: #2A1216; color: #F87171;"
+            "  border: 1px solid #7F1D1D; border-radius: 6px;"
+            "  font-size: 11px; font-weight: 600; padding: 0 12px;"
+            "  letter-spacing: 0.2px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #5A131A; border-color: #F87171;"
+            "}"
+            "QPushButton:pressed { background: #DC2626; color: #FEF2F2; }"
+            "QPushButton:disabled { color: #1C1C1C; border-color: #111111; background: #0D0D0D; }"
+        )
+        self._stress_btn.setEnabled(False)
+        self._stress_btn.clicked.connect(self._open_stress_test)
+        title_row.addWidget(self._stress_btn)
         vbox.addWidget(title_bar)
 
         # Rand 2 — commodity name + pret, stanga
@@ -497,9 +516,12 @@ class MainWindow(QMainWindow):
     def store_price_data(self, price_data: dict) -> None:
         """Cache the latest price data so the Strategy Report can use it."""
         self._last_price_data = price_data or {}
-        self._report_btn.setEnabled(bool(self._last_price_data and self._last_consensus))
+        _ready = bool(self._last_price_data and self._last_consensus)
+        self._report_btn.setEnabled(_ready)
+        self._stress_btn.setEnabled(_ready)
 
     def update_news(self, items: list[dict]) -> None:
+        self._last_news = items
         self.panel_news.update_news(items)
 
     def update_insight(self, text: str) -> None:
@@ -513,7 +535,9 @@ class MainWindow(QMainWindow):
         """
         self._last_consensus = consensus_result or {}
         self.panel_ai.update_consensus(consensus_result)
-        self._report_btn.setEnabled(bool(self._last_price_data))
+        _ready = bool(self._last_price_data and self._last_consensus)
+        self._report_btn.setEnabled(_ready)
+        self._stress_btn.setEnabled(_ready)
 
     def show_ai_loading(self, symbol: str) -> None:
         """Show animated loading state in AI panel when fetching new commodity.
@@ -584,6 +608,19 @@ class MainWindow(QMainWindow):
         self._tabs.setCurrentIndex(1)
 
     # ── Investor Profile ───────────────────────────────────────────────────────
+
+    def _open_stress_test(self) -> None:
+        if not self._current_symbol:
+            return
+        from ui.stress_test_simulator import StressTestDialog
+        dlg = StressTestDialog(
+            symbol=self._current_symbol,
+            price_data=self._last_price_data,
+            consensus_result=self._last_consensus,
+            news=self._last_news,
+            parent=self,
+        )
+        dlg.exec()
 
     def _open_strategy_report(self) -> None:
         """Open the AI Alpha Strategy Report for the currently selected commodity."""
