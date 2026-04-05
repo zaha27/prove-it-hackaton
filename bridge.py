@@ -120,63 +120,45 @@ class _FetchWorker(QThread):
 
 
 class _MacroFetchWorker(QThread):
-    """Background thread — fetches macro news and macro insight from FastAPI backend."""
+    """Background thread — aggregates live news for all commodities via data_api."""
 
-    macro_data_ready = pyqtSignal(list, str)  # (news, insight)
-    error_occurred = pyqtSignal(str)
+    macro_data_ready = pyqtSignal(list)  # news_items
+    error_occurred   = pyqtSignal(str)
+
+    _COMMODITIES = ["GOLD", "OIL", "SILVER", "NATURAL_GAS", "WHEAT", "COPPER"]
+
+    # data_api sentiment → PanelNews badge key
+    _SENTIMENT_MAP = {"positive": "bullish", "negative": "bearish", "neutral": "neutral"}
 
     def run(self) -> None:
         try:
-            news_resp = requests.get(
-                f"{MACRO_BASE_URL}/macro/news",
-                timeout=MACRO_TIMEOUT_S,
-            )
-            news_resp.raise_for_status()
-            news_payload = news_resp.json()
-            if isinstance(news_payload, list):
-                news_items = news_payload
-            elif isinstance(news_payload, dict):
-                news_items = (
-                    news_payload.get("news")
-                    or news_payload.get("items")
-                    or news_payload.get("articles")
-                    or []
-                )
-            else:
-                news_items = []
+            from src.data.api import data_api
 
-            insight_resp = requests.get(
-                f"{MACRO_BASE_URL}/macro/insight",
-                timeout=MACRO_TIMEOUT_S,
-            )
-            insight_resp.raise_for_status()
-            insight_payload = insight_resp.json()
-            if isinstance(insight_payload, str):
-                insight_text = insight_payload
-            elif isinstance(insight_payload, dict):
-                insight_text = (
-                    insight_payload.get("insight")
-                    or insight_payload.get("text")
-                    or insight_payload.get("content")
-                    or ""
-                )
-            else:
-                insight_text = ""
+            all_items: list[dict] = []
 
-            self.macro_data_ready.emit(news_items, insight_text)
+            for commodity in self._COMMODITIES:
+                try:
+                    articles = data_api.get_news(commodity, days=7, limit=10)
+                    for a in articles:
+                        all_items.append({
+                            "title":     a.title,
+                            "source":    f"{commodity}  {a.source}" if a.source else commodity,
+                            "timestamp": a.date,
+                            "sentiment": self._SENTIMENT_MAP.get(a.sentiment, "neutral"),
+                            "summary":   a.content[:220] if a.content else "",
+                        })
+                except Exception:
+                    logger.warning("Macro news: failed to fetch %s", commodity, exc_info=True)
 
-        except requests.exceptions.ConnectionError:
-            self.error_occurred.emit(
-                f"Macro data unavailable: cannot connect to backend at {MACRO_BASE_URL}."
-            )
-        except requests.exceptions.Timeout:
-            self.error_occurred.emit(
-                "Macro data request timed out. Please try again in a few moments."
-            )
-        except requests.exceptions.RequestException as exc:
-            self.error_occurred.emit(f"Macro data request failed: {exc}")
+            # Newest articles first
+            all_items.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+            logger.info("Macro news feed: %d total articles across all commodities", len(all_items))
+
+            self.macro_data_ready.emit(all_items)
+
         except Exception as exc:
-            self.error_occurred.emit(f"Unexpected macro data error: {exc}")
+            logger.exception("_MacroFetchWorker failed")
+            self.error_occurred.emit(f"Macro news error: {exc}")
 
 
 class AppBridge(QObject):
@@ -219,8 +201,6 @@ class AppBridge(QObject):
             self._macro_worker.quit()
             self._macro_worker.wait(100)
             self._macro_worker = None
-
-        self._set_macro_loading(True)
 
         self._macro_worker = _MacroFetchWorker()
         self._macro_worker.macro_data_ready.connect(self._on_macro_data_ready)
@@ -278,6 +258,7 @@ class AppBridge(QObject):
         if price_data and price_data.get("close"):
             self._panel_chart.load_data(price_data)
             last_price = price_data["close"][-1] if price_data["close"] else None
+            self._window.store_price_data(price_data)
         else:
             self._panel_chart.show_placeholder()
             last_price = None
@@ -324,19 +305,9 @@ class AppBridge(QObject):
         self._window.set_loading(False)
         self._window.update_insight(f"Data fetch failed:\n\n{message}")
 
-    def _on_macro_data_ready(self, news: list, insight: str) -> None:
+    def _on_macro_data_ready(self, news: list) -> None:
         self._window.update_macro_news(news)
-        self._window.update_macro_insight(insight)
-        self._set_macro_loading(False)
 
     def _on_macro_error(self, message: str) -> None:
         logger.error("Macro fetch failed: %s", message)
         self._window.update_macro_news([])
-        self._window.update_macro_insight(f"Macro data fetch failed:\n\n{message}")
-        self._set_macro_loading(False)
-
-    def _set_macro_loading(self, is_loading: bool) -> None:
-        if hasattr(self._window, "macro_ai"):
-            self._window.macro_ai.set_loading(is_loading)
-        elif hasattr(self._window, "panel_ai"):
-            self._window.panel_ai.set_loading(is_loading)

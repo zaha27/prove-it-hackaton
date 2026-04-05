@@ -39,30 +39,18 @@ def main() -> int:
     window.set_chart_widget(panel_chart)
 
     # Tab 0 — World Macro View
-    from charts.world_map_widget import WorldMapWidget
-    macro_map = WorldMapWidget()
+    from ui.macro_map import MacroMapView
+    macro_map = MacroMapView()
     window.set_map_widget(macro_map)
 
-    def _load_map_events() -> None:
-        from data.backend_client import is_backend_available, get_macro_events
-        try:
-            if is_backend_available():
-                events = get_macro_events()
-                macro_map.load_events(events)
-                logger.info("World map: loaded %d live events", len(events))
-            else:
-                logger.warning("World map: backend unavailable, map stays empty")
-                macro_map.load_events([])
-        except Exception as exc:
-            logger.error("World map load failed: %s", exc)
-            macro_map.load_events([])
+    _MAP_COMMODITIES = ["GOLD", "OIL", "SILVER", "NATURAL_GAS", "WHEAT", "COPPER"]
 
-    # Load map on startup
-    _load_map_events()
+    # Load live news markers on startup
+    macro_map.load_macro_data(_MAP_COMMODITIES)
 
     # Reload every 10 minutes
     map_timer = QTimer()
-    map_timer.timeout.connect(_load_map_events)
+    map_timer.timeout.connect(lambda: macro_map.load_macro_data(_MAP_COMMODITIES))
     map_timer.start(MAP_REFRESH_INTERVAL_MS)
 
     # Wire Trading Desk → data layer (no mock)

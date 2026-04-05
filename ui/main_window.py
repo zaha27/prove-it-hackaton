@@ -24,9 +24,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer, QEvent
 from PyQt6.QtGui import QMovie
 
+from src.data.api.data_api import SUPPORTED_COMMODITIES
 from ui.sidebar import Sidebar
 from ui.panel_news import PanelNews
 from ui.panel_ai import PanelAI
+from ui.benchmark_page import BenchmarkPage
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +157,8 @@ class MainWindow(QMainWindow):
         self.setStyleSheet("background: #080808;")
         self._current_symbol: str = ""
         self._map_placeholder: QLabel | None = None
+        self._last_price_data: dict = {}
+        self._last_consensus: dict = {}
         self._init_ui()
 
     # ── Construction ───────────────────────────────────────────────────────────
@@ -184,9 +188,27 @@ class MainWindow(QMainWindow):
         self._tabs = QTabWidget()
         self._tabs.addTab(self._build_tab_macro(),   "World Macro View")
         self._tabs.addTab(self._build_tab_trading(), "Trading Desk")
+        self._tabs.addTab(BenchmarkPage(),           "System Benchmark")
         return self._tabs
 
     # ── Tab 0: World Macro View ────────────────────────────────────────────────
+
+    def show_trading_desk(self):
+        """Schimbă ecranul pe Trading Desk."""
+        self.central_stack.setCurrentIndex(0)
+        # Opțional: Schimbă culoarea butoanelor sus pentru a arăta care e activ
+        self.btn_trading_desk.setStyleSheet("background: #2563EB; color: white;") 
+        self.btn_macro_view.setStyleSheet("background: transparent; color: #9CA3AF;")
+
+    def show_macro_view(self):
+        """Schimbă ecranul pe Harta Macro și declanșează încărcarea știrilor."""
+        self.central_stack.setCurrentIndex(1)
+        self.btn_macro_view.setStyleSheet("background: #2563EB; color: white;")
+        self.btn_trading_desk.setStyleSheet("background: transparent; color: #9CA3AF;")
+        
+        # Declanșează căutarea live a datelor pentru toate materiile prime suportate!
+        # Thread-ul din spate (pe care l-ai făcut) își va face treaba fără să blocheze UI-ul.
+        self.macro_map_view.load_macro_data(SUPPORTED_COMMODITIES)
 
     def _build_tab_macro(self) -> QWidget:
         """
@@ -207,15 +229,9 @@ class MainWindow(QMainWindow):
         h_splitter = QSplitter(Qt.Orientation.Horizontal)
         h_splitter.setHandleWidth(1)
 
-        # Stanga 30%: macro panels stacked
-        left_split = QSplitter(Qt.Orientation.Vertical)
-        left_split.setHandleWidth(1)
+        # Stanga 30%: news feed only
         self.macro_news = PanelNews()
-        self.macro_ai   = PanelAI()
-        left_split.addWidget(self.macro_news)
-        left_split.addWidget(self.macro_ai)
-        left_split.setSizes([450, 450])
-        h_splitter.addWidget(left_split)
+        h_splitter.addWidget(self.macro_news)
 
         # Dreapta 70%: map container + overlay
         self.map_container = QFrame()
@@ -345,6 +361,25 @@ class MainWindow(QMainWindow):
         )
         self._profile_btn.clicked.connect(self._open_profile_dialog)
         title_row.addWidget(self._profile_btn)
+
+        self._report_btn = QPushButton("Strategy Report")
+        self._report_btn.setFixedHeight(26)
+        self._report_btn.setStyleSheet(
+            "QPushButton {"
+            "  background: #0A1628; color: #4ADE80;"
+            "  border: 1px solid #14532D; border-radius: 6px;"
+            "  font-size: 11px; font-weight: 600; padding: 0 12px;"
+            "  letter-spacing: 0.2px;"
+            "}"
+            "QPushButton:hover {"
+            "  background: #14532D; border-color: #4ADE80;"
+            "}"
+            "QPushButton:pressed { background: #16A34A; }"
+            "QPushButton:disabled { color: #1C1C1C; border-color: #111111; background: #0D0D0D; }"
+        )
+        self._report_btn.setEnabled(False)
+        self._report_btn.clicked.connect(self._open_strategy_report)
+        title_row.addWidget(self._report_btn)
         vbox.addWidget(title_bar)
 
         # Rand 2 — commodity name + pret, stanga
@@ -459,6 +494,11 @@ class MainWindow(QMainWindow):
 
     # ── Trading Desk update contract (bridge.py — neschimbat) ─────────────────
 
+    def store_price_data(self, price_data: dict) -> None:
+        """Cache the latest price data so the Strategy Report can use it."""
+        self._last_price_data = price_data or {}
+        self._report_btn.setEnabled(bool(self._last_price_data and self._last_consensus))
+
     def update_news(self, items: list[dict]) -> None:
         self.panel_news.update_news(items)
 
@@ -471,7 +511,9 @@ class MainWindow(QMainWindow):
         Args:
             consensus_result: Dict with debate history and final recommendation
         """
+        self._last_consensus = consensus_result or {}
         self.panel_ai.update_consensus(consensus_result)
+        self._report_btn.setEnabled(bool(self._last_price_data))
 
     def show_ai_loading(self, symbol: str) -> None:
         """Show animated loading state in AI panel when fetching new commodity.
@@ -535,9 +577,6 @@ class MainWindow(QMainWindow):
     def update_macro_news(self, items: list[dict]) -> None:
         self.macro_news.update_news(items)
 
-    def update_macro_insight(self, text: str) -> None:
-        self.macro_ai.update_insight(text)
-
     def switch_to_macro(self) -> None:
         self._tabs.setCurrentIndex(0)
 
@@ -545,6 +584,19 @@ class MainWindow(QMainWindow):
         self._tabs.setCurrentIndex(1)
 
     # ── Investor Profile ───────────────────────────────────────────────────────
+
+    def _open_strategy_report(self) -> None:
+        """Open the AI Alpha Strategy Report for the currently selected commodity."""
+        if not self._current_symbol:
+            return
+        from ui.report_generator import AIStrategyReportDialog
+        dlg = AIStrategyReportDialog(
+            self._current_symbol,
+            self._last_price_data,
+            self._last_consensus,
+            parent=self,
+        )
+        dlg.exec()
 
     def _open_profile_dialog(self) -> None:
         """Open the investor profile dialog from the header button."""

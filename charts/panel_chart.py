@@ -4,7 +4,7 @@ charts/panel_chart.py — Chart panel with range/interval toolbar and indicator 
 import logging
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, QLabel, QButtonGroup,
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QButtonGroup,
 )
 from PyQt6.QtCore import pyqtSignal
 
@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 
 _RANGES = ["6M", "1Y", "5Y", "Max"]
 _INTERVALS = ["1D", "1W", "1M"]
-_INDICATORS = ["None", "Bollinger Bands", "RSI", "MACD"]
-
 
 class PanelChart(QWidget):
     """
@@ -94,28 +92,6 @@ class PanelChart(QWidget):
             self._interval_buttons[value] = btn
             interval_row.addWidget(btn)
 
-        range_row.addSpacing(16)
-        lbl2 = QLabel("Indicator")
-        lbl2.setStyleSheet(
-            "color:#374151; font-size:11px; font-weight:500;"
-            "letter-spacing:0.3px; margin-right:4px;"
-        )
-        range_row.addWidget(lbl2)
-
-        self._indicator_combo = QComboBox()
-        self._indicator_combo.addItems(_INDICATORS)
-        self._indicator_combo.currentTextChanged.connect(self._on_indicator_change)
-        self._indicator_combo.setFixedWidth(140)
-        self._indicator_combo.setStyleSheet(
-            "QComboBox { background:#111111; color:#6B7280;"
-            "  border:1px solid #1C1C1C; border-radius:5px;"
-            "  padding:3px 10px; font-size:12px; }"
-            "QComboBox:hover { border-color:#262626; color:#D1D5DB; }"
-            "QComboBox QAbstractItemView {"
-            "  background:#111111; color:#D1D5DB;"
-            "  border:1px solid #1C1C1C; selection-background-color:#1E3A5F; }"
-        )
-        range_row.addWidget(self._indicator_combo)
         range_row.addStretch()
         interval_row.addStretch()
 
@@ -139,15 +115,6 @@ class PanelChart(QWidget):
     def _on_interval(self, value: str) -> None:
         self._active_interval = value
         self.timeframe_changed.emit(self._active_range, self._active_interval)
-
-    def _on_indicator_change(self, text: str) -> None:
-        mapping = {
-            "None": "none",
-            "Bollinger Bands": "bollinger",
-            "RSI": "rsi",
-            "MACD": "macd",
-        }
-        self._chart_widget.set_indicator(mapping.get(text, "none"))
 
     def load_data(self, ohlcv: dict) -> None:
         """Forward OHLCV data to the inner ChartWidget."""

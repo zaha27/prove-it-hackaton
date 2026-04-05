@@ -11,6 +11,7 @@ from qdrant_client.models import PointStruct
 
 from src.data.clients.yfinance_client import YFinanceClient
 from src.data.config import config
+from src.data.ingestion.embedding_utils import qdrant_upsert_with_retry
 from src.data.vector_schema import PRICE_PATTERNS_COLLECTION
 from src.features.xgboost_features import XGBoostFeatureEngineer
 
@@ -319,16 +320,13 @@ class EnhancedTimeSeriesIngestor:
             if len(points) % 500 == 0:
                 print(f"    Processed {len(points)} patterns...")
 
-        # Batch upsert to Qdrant
+        # Batch upsert to Qdrant with retry
         if points:
             print(f"  💾 Storing {len(points)} patterns in Qdrant...")
             batch_size = 100
             for i in range(0, len(points), batch_size):
                 batch = points[i:i + batch_size]
-                self.qdrant.upsert(
-                    collection_name=self.collection_name,
-                    points=batch,
-                )
+                qdrant_upsert_with_retry(self.qdrant, self.collection_name, batch)
 
         print(f"✅ Ingested {len(points)} patterns for {commodity}")
         return len(points)

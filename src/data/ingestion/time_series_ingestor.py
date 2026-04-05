@@ -1,8 +1,7 @@
 """Time series data ingestion for historical price patterns."""
 
 import hashlib
-import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -13,6 +12,7 @@ from sentence_transformers import SentenceTransformer
 
 from src.data.clients.yfinance_client import YFinanceClient
 from src.data.config import config
+from src.data.ingestion.embedding_utils import create_pattern_embedding, qdrant_upsert_with_retry
 from src.data.vector_schema import PRICE_PATTERNS_COLLECTION
 
 
@@ -32,103 +32,6 @@ class TimeSeriesIngestor:
         """Generate unique numerical ID for a price pattern."""
         content = f"{commodity}:{date}:{window_size}"
         return int(hashlib.md5(content.encode()).hexdigest(), 16) & ((1 << 63) - 1)
-
-    def _create_pattern_embedding(
-        self, prices: list[float], volumes: list[int]
-    ) -> list[float]:
-        """Create embedding from price pattern.
-
-        Args:
-            prices: List of closing prices
-            volumes: List of volumes
-
-        Returns:
-            Embedding vector
-        """
-        # Normalize prices (percentage change from start)
-        if not prices or prices[0] == 0:
-            normalized = [0.0] * len(prices)
-        else:
-            normalized = [(p / prices[0] - 1) * 100 for p in prices]
-
-        # Normalize volumes (relative to average)
-        if volumes and sum(volumes) > 0:
-            avg_vol = sum(volumes) / len(volumes)
-            normalized_vol = [(v / avg_vol - 1) * 100 for v in volumes]
-        else:
-            normalized_vol = [0.0] * len(volumes)
-
-        # Create text description for semantic embedding
-        # This allows pattern matching based on pattern type
-        returns = normalized[-1] if normalized else 0
-        volatility = np.std(normalized) if len(normalized) > 1 else 0
-
-        pattern_desc = self._describe_pattern(returns, volatility, normalized)
-
-        # Generate embedding from description
-        embedding = self.embedding_model.encode(
-            pattern_desc, convert_to_tensor=False
-        )
-        return embedding.tolist()
-
-    def _describe_pattern(
-        self,
-        total_return: float,
-        volatility: float,
-        normalized_prices: list[float],
-    ) -> str:
-        """Create text description of price pattern.
-
-        Args:
-            total_return: Total return percentage
-            volatility: Standard deviation of returns
-            normalized_prices: Normalized price series
-
-        Returns:
-            Text description
-        """
-        # Determine trend
-        if total_return > 5:
-            trend = "strong uptrend"
-        elif total_return > 2:
-            trend = "moderate uptrend"
-        elif total_return < -5:
-            trend = "strong downtrend"
-        elif total_return < -2:
-            trend = "moderate downtrend"
-        else:
-            trend = "sideways consolidation"
-
-        # Determine volatility regime
-        if volatility > 3:
-            vol_regime = "high volatility"
-        elif volatility > 1.5:
-            vol_regime = "medium volatility"
-        else:
-            vol_regime = "low volatility"
-
-        # Check for specific patterns
-        patterns = []
-
-        # Breakout detection
-        if len(normalized_prices) >= 10:
-            first_half = normalized_prices[: len(normalized_prices) // 2]
-            second_half = normalized_prices[len(normalized_prices) // 2 :]
-            if abs(np.mean(first_half)) < 1 and abs(np.mean(second_half)) > 3:
-                patterns.append("breakout pattern")
-
-        # Reversal detection
-        if len(normalized_prices) >= 10:
-            first_third = normalized_prices[: len(normalized_prices) // 3]
-            last_third = normalized_prices[-len(normalized_prices) // 3 :]
-            if np.mean(first_third) > 2 and np.mean(last_third) < -1:
-                patterns.append("bullish to bearish reversal")
-            elif np.mean(first_third) < -2 and np.mean(last_third) > 1:
-                patterns.append("bearish to bullish reversal")
-
-        pattern_text = " ".join(patterns) if patterns else "continuation pattern"
-
-        return f"{trend} with {vol_regime} showing {pattern_text}"
 
     def _calculate_future_returns(
         self, df: pd.DataFrame, current_idx: int
@@ -228,7 +131,7 @@ class TimeSeriesIngestor:
             date_str = window_df["Date"].iloc[-1]
 
             # Generate embedding
-            embedding = self._create_pattern_embedding(prices, volumes)
+            embedding = create_pattern_embedding(prices, volumes, self.embedding_model)
 
             # Calculate future returns
             future_returns = self._calculate_future_returns(df, i + pattern_window)
@@ -267,15 +170,12 @@ class TimeSeriesIngestor:
             )
             points.append(point)
 
-        # Batch upsert to Qdrant
+        # Batch upsert to Qdrant with retry
         if points:
             batch_size = 100
             for i in range(0, len(points), batch_size):
                 batch = points[i : i + batch_size]
-                self.qdrant.upsert(
-                    collection_name=self.collection_name,
-                    points=batch,
-                )
+                qdrant_upsert_with_retry(self.qdrant, self.collection_name, batch)
 
         print(f"Ingested {len(points)} patterns for {commodity}")
         return len(points)

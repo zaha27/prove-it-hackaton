@@ -1,7 +1,7 @@
 """
 ui/panel_ai.py — AI insight panel, clean Perplexity style, no emoji.
 """
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout, QComboBox
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QHBoxLayout
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 import logging
@@ -82,30 +82,6 @@ class PanelAI(QWidget):
             row.addWidget(tag)
 
         row.addStretch()
-
-        # Risk profile label
-        risk_label = QLabel("Risk:")
-        risk_label.setStyleSheet("color:#6B7280; font-size:10px; font-weight:500;")
-        row.addWidget(risk_label)
-
-        # Risk selector
-        self._risk_combo = QComboBox()
-        self._risk_combo.addItems(["Conservative", "Balanced", "Aggressive"])
-        self._risk_combo.setCurrentIndex(1)  # Balanced default
-        self._risk_combo.setFixedHeight(20)
-        self._risk_combo.setStyleSheet(
-            "QComboBox {"
-            "  background:#111111; color:#F1F5F9; border:1px solid #1C1C1C;"
-            "  border-radius:4px; font-size:10px; padding:0 8px; min-width:88px;"
-            "}"
-            "QComboBox::drop-down { border:none; width:16px; }"
-            "QComboBox::down-arrow { width:8px; height:8px; }"
-            "QComboBox QAbstractItemView {"
-            "  background:#111111; color:#F1F5F9; border:1px solid #1C1C1C;"
-            "  selection-background-color:#1E3A5F; outline:none;"
-            "}"
-        )
-        row.addWidget(self._risk_combo)
         return bar
 
     def _build_text_area(self) -> QTextEdit:
@@ -127,10 +103,6 @@ class PanelAI(QWidget):
         return self._text_edit
 
     # Public contract ──────────────────────────────────────────────────────────
-
-    def get_risk_profile(self) -> str:
-        """Return the currently selected risk profile: Conservative, Balanced, or Aggressive."""
-        return self._risk_combo.currentText()
 
     def update_insight(self, insight_text: str) -> None:
         """Called by Backend/Bridge with the LLM response (plain text or markdown)."""

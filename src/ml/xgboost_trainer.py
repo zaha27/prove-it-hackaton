@@ -1,5 +1,6 @@
 """XGBoost training pipeline for commodity price prediction."""
 
+import json
 import logging
 import pickle
 from pathlib import Path
@@ -34,6 +35,7 @@ class XGBoostTrainer:
         self.collection_name = PRICE_PATTERNS_COLLECTION.name
         self.models: dict[str, xgb.XGBRegressor] = {}
         self.feature_importance: dict[str, dict[str, float]] = {}
+        self.feature_names: dict[str, list[str]] = {}
         self.model_dir = Path(model_dir) if model_dir else Path("models")
         self.model_dir.mkdir(exist_ok=True)
 
@@ -148,6 +150,10 @@ class XGBoostTrainer:
             raise ValueError(f"Invalid commodity symbol for model path: {commodity}")
         return self.model_dir / f"xgboost_{commodity}.pkl"
 
+    def _get_feature_names_path(self, commodity: str) -> Path:
+        """Get companion feature names JSON path for a commodity model."""
+        return self.model_dir / f"xgboost_{commodity}_features.json"
+
     def train_model(
         self,
         commodity: str,
@@ -169,10 +175,7 @@ class XGBoostTrainer:
         # Try to load existing model
         if not force_retrain and model_path.exists():
             print(f"  Loading existing model for {commodity}...")
-            with open(model_path, "rb") as f:
-                model = pickle.load(f)
-            self.models[commodity] = model
-            return model
+            return self.load_model(commodity)
 
         print(f"  Training XGBoost model for {commodity}...")
 
@@ -224,6 +227,13 @@ class XGBoostTrainer:
             pickle.dump(model, f)
         print(f"    Model saved to {model_path}")
 
+        # Save feature names alongside the model for drift detection
+        names = list(X.columns)
+        self.feature_names[commodity] = names
+        features_path = self._get_feature_names_path(commodity)
+        with open(features_path, "w") as f:
+            json.dump(names, f)
+
         return model
 
     def train_all_models(
@@ -260,6 +270,13 @@ class XGBoostTrainer:
         if not isinstance(model, xgb.XGBRegressor):
             raise ValueError(f"Invalid model object for {commodity}: {type(model).__name__}")
         self.models[commodity] = model
+
+        # Load companion feature names if present
+        features_path = self._get_feature_names_path(commodity)
+        if features_path.exists():
+            with open(features_path) as f:
+                self.feature_names[commodity] = json.load(f)
+
         return model
 
     def predict(self, commodity: str, features: dict[str, float]) -> float:
@@ -282,7 +299,21 @@ class XGBoostTrainer:
             )
             model = self.train_model(commodity)
 
-        # Convert features to array in correct order
+        # Validate feature coverage to catch silent drift
+        expected = self.feature_names.get(commodity) or model.get_booster().feature_names or []
+        if expected:
+            provided = set(features.keys())
+            overlap = len(provided & set(expected)) / len(expected)
+            if overlap < 0.5:
+                logger.warning(
+                    "Feature drift detected for %s: only %.0f%% of expected features present "
+                    "(%d/%d). Predictions may be unreliable.",
+                    commodity,
+                    overlap * 100,
+                    len(provided & set(expected)),
+                    len(expected),
+                )
+
         feature_names = model.get_booster().feature_names
         feature_array = np.array([[features.get(f, 0.0) for f in feature_names]])
 
