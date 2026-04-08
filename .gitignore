@@ -44,4 +44,3 @@ config/.env
 config/*.env
 config/secrets.yaml
 !config/.env.example
-.gitnexus
